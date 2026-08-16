@@ -19,60 +19,37 @@ jobs:
           gradle-version: '9.5.1'
       - name: Prepare Minecraft 26.1.2 runtime
         run: gradle compileJava --no-daemon
-      - name: Inspect AbstractBoat physics and rider methods
+      - name: Inspect exact ship port APIs
         shell: bash
         run: |
           set -euo pipefail
           MCJAR="$HOME/.gradle/caches/fabric-loom/26.1.2/minecraft-client.jar"
           test -f "$MCJAR"
-          javap -classpath "$MCJAR" -c -p -s net.minecraft.world.entity.vehicle.boat.AbstractBoat > boat.dump
-          echo '=== method inventory ==='
-          grep -E '^  (public|protected|private)' boat.dump | grep -E 'tick|float|status|water|control|input|passenger|ride|move|friction|gravity' || true
-          echo '=== tick ==='
-          python3 - <<'PY'
-          text=open('boat.dump').read().splitlines()
-          needles=['public void tick();','private void floatBoat();','protected void floatBoat();','private net.minecraft.world.entity.vehicle.boat.AbstractBoat$Status getStatus();','private void controlBoat();']
-          for needle in needles:
-              for i,line in enumerate(text):
-                  if line.strip()==needle:
-                      print('\n===',needle,'===')
-                      print('\n'.join(text[i:i+220]))
-                      break
-          PY
-
-      - name: Inspect custom mob renderer and entity APIs
-        shell: bash
-        run: |
-          set -euo pipefail
-          MCJAR="$HOME/.gradle/caches/fabric-loom/26.1.2/minecraft-client.jar"
           for cls in \
             net.minecraft.world.entity.Entity \
+            net.minecraft.world.entity.EntityType \
             net.minecraft.world.entity.Mob \
             net.minecraft.world.entity.PathfinderMob \
-            net.minecraft.client.renderer.entity.EntityRenderer \
-            net.minecraft.client.renderer.entity.LivingEntityRenderer \
+            net.minecraft.world.entity.LivingEntity \
+            net.minecraft.world.entity.ai.attributes.Attributes \
+            net.minecraft.world.item.Item \
+            net.minecraft.world.entity.player.Player \
+            net.minecraft.world.InteractionResult \
+            net.minecraft.world.entity.EntitySpawnReason \
             net.minecraft.client.renderer.entity.MobRenderer \
-            net.minecraft.client.renderer.entity.state.EntityRenderState \
-            net.minecraft.client.renderer.entity.state.LivingEntityRenderState \
-            net.minecraft.client.model.EntityModel \
-            net.minecraft.network.protocol.common.custom.CustomPacketPayload \
-            net.minecraft.network.codec.StreamCodec \
-            net.minecraft.network.codec.ByteBufCodecs; do
+            net.minecraft.client.renderer.entity.LivingEntityRenderer; do
               echo "=== $cls ==="
-              javap -classpath "$MCJAR" -p -s "$cls" | head -n 260
+              javap -classpath "$MCJAR" -p -s "$cls" | grep -E -A2 -B1 '(^  (public|protected)|create\(|mobInteract|interactAt|startRiding|canAddPassenger|getPassengerAttachmentPoint|getDismountLocation|use\(|consume|shrink|setYBodyRot|setYHeadRot|setNoAi|setPersistence|removeWhenFarAway|canBeCollidedWith|canCollideWith|isPushable|travel\(|setDeltaMovement|getLookAngle|MAX_HEALTH|MOVEMENT_SPEED|ATTACK_DAMAGE|FOLLOW_RANGE|STEP_HEIGHT|KNOCKBACK_RESISTANCE|scale\(|getTextureLocation|createRenderState)' || true
           done
-
-      - name: Inspect Fabric networking and tick APIs
-        shell: bash
-        run: |
-          set -euo pipefail
+          echo '=== Fabric networking ==='
           CP=$(find "$HOME/.gradle/caches/modules-2/files-2.1" -name '*.jar' -path '*fabric*' -printf '%p:' | sed 's/:$//')
           for cls in \
             net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry \
             net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking \
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking\$PlayPayloadHandler \
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking\$Context \
             net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking \
-            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents \
             net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry; do
               echo "=== $cls ==="
-              javap -classpath "$CP" -p -s "$cls" | head -n 260 || true
+              javap -classpath "$CP" -p -s "$cls" | head -n 220 || true
           done
