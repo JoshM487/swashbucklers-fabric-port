@@ -15,6 +15,7 @@ public final class HpmChestBoat extends ChestBoat implements HpmControllableShip
     private final double buoyancyProbeYOffset;
     private final double buoyancyLiftVelocity;
     private final HpmShipControlState control;
+    private boolean runningVanillaBoatTick;
 
     public HpmChestBoat(EntityType<? extends ChestBoat> type, Level level, Supplier<Item> dropItem,
             double buoyancyProbeYOffset, double buoyancyLiftVelocity,
@@ -27,9 +28,23 @@ public final class HpmChestBoat extends ChestBoat implements HpmControllableShip
 
     @Override
     public void tick() {
-        super.tick();
+        this.runningVanillaBoatTick = true;
+        try {
+            super.tick();
+        } finally {
+            this.runningVanillaBoatTick = false;
+        }
+
         HpmShipPhysics.applyOriginalBuoyancy(this, this.buoyancyProbeYOffset, this.buoyancyLiftVelocity);
         this.control.tickOriginalControls(this);
+    }
+
+    @Override
+    public void ejectPassengers() {
+        if (this.runningVanillaBoatTick && this.getControllingPassenger() != null) {
+            return;
+        }
+        super.ejectPassengers();
     }
 
     @Override
