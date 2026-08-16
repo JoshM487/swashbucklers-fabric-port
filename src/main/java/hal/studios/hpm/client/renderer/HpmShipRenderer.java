@@ -5,10 +5,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import hal.studios.hpm.client.model.HpmShipModel;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.AbstractBoatRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.BoatRenderState;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.resources.Identifier;
 
 public final class HpmShipRenderer extends AbstractBoatRenderer {
@@ -28,8 +29,8 @@ public final class HpmShipRenderer extends AbstractBoatRenderer {
     }
 
     @Override
-    public void render(BoatRenderState state, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
-        super.render(state, poseStack, bufferSource, packedLight);
+    public void submit(BoatRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
+        super.submit(state, poseStack, nodeCollector, cameraState);
 
         if (Boolean.getBoolean("hpm.ci.renderTest") && !this.renderLogged) {
             this.renderLogged = true;
