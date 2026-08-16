@@ -23,7 +23,6 @@ repositories {
 
 configurations {
     originalSwashbucklers
-    productionMods
 }
 
 dependencies {
@@ -35,8 +34,8 @@ dependencies {
     // Used only as a source for the author's textures and Blockbench model bytecode.
     originalSwashbucklers "curse.maven:swashbucklers-746320:6536692"
 
-    // Explicit mod set for Loom's production-runtime smoke tests.
-    productionMods "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    // Loom production-run tasks load mods from this configuration.
+    productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
 }
 
 def generatedOriginal = layout.buildDirectory.dir('generated/swashbucklers-original')
@@ -80,7 +79,7 @@ java {
 
 tasks.named('jar') {
     dependsOn prepareOriginalContent
-    // Feed the recovered named model classes through Loom's normal remapJar step.
+    // Minecraft 26.1 uses official mappings in production, so this is the distributable JAR.
     from(generatedOriginal.map { it.dir('classes') })
 }
 
@@ -88,15 +87,13 @@ tasks.named('sourcesJar') {
     dependsOn prepareOriginalContent
 }
 
-// This uses Fabric Loom's production launcher, not the named development runtime.
-// It specifically catches remapping/linkage failures that only occur in a real Fabric install.
+// Loom's production launcher exercises the same official-mapped JAR users install.
 tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask) {
-    dependsOn tasks.named('remapJar')
+    dependsOn tasks.named('jar')
     installerVersion = '1.1.2'
     loaderVersion = fabricLoaderVersion
     minecraftVersion = mcVersion
-    mods.from(tasks.named('remapJar').flatMap { it.archiveFile })
-    mods.from(configurations.productionMods)
+    mods.from(tasks.named('jar').flatMap { it.archiveFile })
     programArgs.add('nogui')
     runDir = file('build/prod-server')
 }
