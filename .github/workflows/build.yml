@@ -64,7 +64,7 @@ jobs:
 
           echo 'Distributable JAR contains the complete 32-file datapack resource tree.'
 
-      - name: Production Fabric server and ship-persistence test
+      - name: Production Fabric server ship buoyancy/persistence test
         continue-on-error: true
         shell: bash
         run: |
@@ -98,9 +98,11 @@ jobs:
             exit 1
           fi
 
-          printf '%s\n' 'execute in minecraft:overworld run forceload add -1 -1 1 1' >&3
-          printf '%s\n' 'execute in minecraft:overworld run fill -10 99 -2 10 99 20 minecraft:stone' >&3
-          printf '%s\n' 'execute in minecraft:overworld positioned 0 100 0 run setworldspawn ~ ~ ~' >&3
+          # Deep real-water pool: an uncorrected gravity-only ship reaches the floor here.
+          printf '%s\n' 'execute in minecraft:overworld run forceload add -2 -2 2 2' >&3
+          printf '%s\n' 'execute in minecraft:overworld run fill -16 89 -4 16 89 24 minecraft:stone' >&3
+          printf '%s\n' 'execute in minecraft:overworld run fill -16 90 -4 16 100 24 minecraft:water' >&3
+          printf '%s\n' 'execute in minecraft:overworld positioned 0 101 0 run setworldspawn ~ ~ ~' >&3
 
           ships=(
             hpm:raft
@@ -111,16 +113,21 @@ jobs:
             hpm:cutter_pirate
             hpm:corvette_steamship
           )
-          xs=(-6 -4 -2 0 2 4 6)
+          xs=(-9 -6 -3 0 3 6 9)
 
           for i in "${!ships[@]}"; do
             printf 'execute in minecraft:overworld positioned %s 100 12 run summon %s ~ ~ ~\n' "${xs[$i]}" "${ships[$i]}" >&3
           done
 
-          sleep 8
+          # Give gravity enough time to reproduce the reported ocean-floor failure.
+          sleep 10
 
           for id in "${ships[@]}"; do
-            printf 'execute if entity @e[type=%s,limit=1] run say SWASHBUCKLERS_SHIP_PERSIST_OK %s\n' "${id}" "${id}" >&3
+            printf 'execute as @e[type=%s,limit=1] run say SWASHBUCKLERS_SHIP_PERSIST_OK %s\n' "${id}" "${id}" >&3
+            printf 'execute as @e[type=%s,limit=1] if entity @s[type=#minecraft:boat] run say SWASHBUCKLERS_BOAT_TAG_OK %s\n' "${id}" "${id}" >&3
+            # If the ship is still near the water surface, five blocks below it is water.
+            # A ship that sank to the y=89 floor fails this check.
+            printf 'execute as @e[type=%s,limit=1] at @s positioned ~ ~-5 ~ if block ~ ~ ~ minecraft:water run say SWASHBUCKLERS_SHIP_AFLOAT_OK %s\n' "${id}" "${id}" >&3
           done
           printf '%s\n' 'save-all flush' >&3
           sleep 4
@@ -131,7 +138,7 @@ jobs:
           wait "${runner_pid}"
           status=$?
           set -e
-          tail -n 800 prod-server.log
+          tail -n 1000 prod-server.log
 
           if [ "${status}" -ne 0 ]; then
             echo "Production server process exited with status ${status}."
@@ -139,13 +146,21 @@ jobs:
           fi
 
           for id in "${ships[@]}"; do
-            if ! grep -q "SWASHBUCKLERS_SHIP_PERSIST_OK ${id}" prod-server.log; then
+            grep -q "SWASHBUCKLERS_SHIP_PERSIST_OK ${id}" prod-server.log || {
               echo "Ship disappeared after summon: ${id}"
               exit 1
-            fi
+            }
+            grep -q "SWASHBUCKLERS_BOAT_TAG_OK ${id}" prod-server.log || {
+              echo "Ship is not recognized by #minecraft:boat at runtime: ${id}"
+              exit 1
+            }
+            grep -q "SWASHBUCKLERS_SHIP_AFLOAT_OK ${id}" prod-server.log || {
+              echo "Ship sank below the allowed surface band: ${id}"
+              exit 1
+            }
           done
 
-          echo 'Production server kept all seven ship entities alive after real ticks.'
+          echo 'Production server kept all seven ships alive, boat-tagged, and afloat in deep water.'
           touch server-smoke.ok
 
       - name: Ensure XVFB is available
@@ -214,7 +229,7 @@ jobs:
         run: |
           failed=0
           if [ ! -f server-smoke.ok ]; then
-            echo 'Server/ship-persistence production test failed.'
+            echo 'Server ship buoyancy/persistence production test failed.'
             failed=1
           fi
           if [ ! -f client-smoke.ok ]; then
