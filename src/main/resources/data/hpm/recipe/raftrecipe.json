@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aba",
+    "ccc",
+    "ccc"
+  ],
+  "key": {
+    "a": "minecraft:barrel",
+    "b": "hpm:small_mast",
+    "c": "#minecraft:logs"
+  },
+  "result": {
+    "id": "hpm:raftitem",
+    "count": 1
+  }
+}
