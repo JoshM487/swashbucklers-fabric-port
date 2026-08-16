@@ -1,0 +1,41 @@
+name: Inspect Minecraft 26.1.2 Boat Physics
+
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-boat-261.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+      - name: Prepare Minecraft 26.1.2 runtime
+        run: gradle compileJava --no-daemon
+      - name: Inspect AbstractBoat physics and rider methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          MCJAR="$HOME/.gradle/caches/fabric-loom/26.1.2/minecraft-client.jar"
+          test -f "$MCJAR"
+          javap -classpath "$MCJAR" -c -p -s net.minecraft.world.entity.vehicle.boat.AbstractBoat > boat.dump
+          echo '=== method inventory ==='
+          grep -E '^  (public|protected|private)' boat.dump | grep -E 'tick|float|status|water|control|input|passenger|ride|move|friction|gravity' || true
+          echo '=== tick ==='
+          python3 - <<'PY'
+          text=open('boat.dump').read().splitlines()
+          needles=['public void tick();','private void floatBoat();','protected void floatBoat();','private net.minecraft.world.entity.vehicle.boat.AbstractBoat$Status getStatus();','private void controlBoat();']
+          for needle in needles:
+              for i,line in enumerate(text):
+                  if line.strip()==needle:
+                      print('\n===',needle,'===')
+                      print('\n'.join(text[i:i+220]))
+                      break
+          PY
