@@ -49,20 +49,17 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 server.runCommand("summon " + ships[i] + " " + xs[i] + " 64 18");
             }
 
-            // Let server spawns sync to the client, then wait until the surrounding chunks are actually drawn.
             context.waitTicks(20);
             singleplayer.getClientLevel().waitForChunksRender();
-
-            // submit(...) runs on real client render frames. This predicate cannot succeed from model baking alone.
             context.waitFor(client -> HpmShipRenderer.ciHasRenderedAll(SHIP_IDS), 30 * 20);
             context.takeScreenshot("swashbucklers-seven-ships-rendered");
             System.out.println("SWASHBUCKLERS_CLIENT_RENDER_TEST_OK " + HpmShipRenderer.ciRenderedIds());
 
-            // Reproduce real gameplay: put a fresh raft on water, mount it, hold the real
-            // client Forward key, and require the ridden entity to move horizontally.
+            // Reproduce real gameplay in a large open-water course so the raft cannot run out
+            // of the pool before we sample its position.
             server.runCommand("kill @e[type=#minecraft:boat]");
-            server.runCommand("fill -12 62 -12 12 62 18 minecraft:stone");
-            server.runCommand("fill -12 63 -12 12 64 18 minecraft:water");
+            server.runCommand("fill -40 62 -40 40 62 40 minecraft:stone");
+            server.runCommand("fill -40 63 -40 40 64 40 minecraft:water");
             server.runCommand("tp @a 0 65 0 0 0");
             server.runCommand("summon hpm:raft 0 64 4 {Tags:[\"hpm_ci_control\"]}");
             context.waitTicks(10);
@@ -80,13 +77,14 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 return vehicle.position();
             });
 
-            // TestInput drives the normal client keybinding path, including boat input handling/networking.
-            context.getInput().holdKeyFor(options -> options.keyUp, 80);
-            context.waitTicks(5);
+            // 30 ticks is enough for a vanilla-controlled boat to travel well over one block,
+            // while keeping the raft safely inside the 81x81 test pool.
+            context.getInput().holdKeyFor(options -> options.keyUp, 30);
+            context.waitTicks(2);
 
             Vec3 end = context.computeOnClient(client -> {
                 if (client.player == null || client.player.getVehicle() == null) {
-                    throw new AssertionError("Player was dismounted during ship control test");
+                    throw new AssertionError("Player was dismounted during short open-water ship control test");
                 }
                 return client.player.getVehicle().position();
             });
