@@ -4,6 +4,7 @@ plugins {
 
 group = project.maven_group
 version = project.mod_version
+def portVersion = project.version.toString()
 
 base {
     archivesName = project.archives_base_name
@@ -23,8 +24,8 @@ configurations {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
     // Original Swashbucklers! 2.6.6B NeoForge 1.21.4 JAR (CurseForge file 6536692).
     // Used only as a source for the author's textures and Blockbench model bytecode.
@@ -32,8 +33,7 @@ dependencies {
 }
 
 def generatedOriginal = layout.buildDirectory.dir('generated/swashbucklers-original')
-
-tasks.register('prepareOriginalContent', Exec) {
+def prepareOriginalContent = tasks.register('prepareOriginalContent', Exec) {
     inputs.files(configurations.originalSwashbucklers)
     inputs.file('tools/prepare_original.py')
     outputs.dir(generatedOriginal)
@@ -54,10 +54,10 @@ sourceSets {
 }
 
 processResources {
-    dependsOn tasks.named('prepareOriginalContent')
-    inputs.property "version", project.version
+    dependsOn prepareOriginalContent
+    inputs.property "version", portVersion
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": portVersion
     }
 }
 
@@ -72,7 +72,11 @@ java {
 }
 
 tasks.named('jar') {
-    dependsOn tasks.named('prepareOriginalContent')
+    dependsOn prepareOriginalContent
     // Feed the recovered named model classes through Loom's normal remapJar step.
     from(generatedOriginal.map { it.dir('classes') })
+}
+
+tasks.named('sourcesJar') {
+    dependsOn prepareOriginalContent
 }
