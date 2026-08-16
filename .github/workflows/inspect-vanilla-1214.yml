@@ -1,0 +1,109 @@
+name: Inspect Vanilla 1.21.4 Passenger Runtime
+
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-vanilla-1214.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Download Mojang 1.21.4 client and official mappings
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json -o manifest.json
+          VERSION_URL=$(python3 - <<'PY'
+          import json
+          d=json.load(open('manifest.json'))
+          print(next(v['url'] for v in d['versions'] if v['id']=='1.21.4'))
+          PY
+          )
+          echo "Mojang version URL: $VERSION_URL"
+          curl -fsSL "$VERSION_URL" -o version.json
+          CLIENT_URL=$(python3 - <<'PY'
+          import json
+          print(json.load(open('version.json'))['downloads']['client']['url'])
+          PY
+          )
+          MAPPINGS_URL=$(python3 - <<'PY'
+          import json
+          print(json.load(open('version.json'))['downloads']['client_mappings']['url'])
+          PY
+          )
+          echo "Mojang client URL: $CLIENT_URL"
+          echo "Mojang client mappings URL: $MAPPINGS_URL"
+          curl -fsSL "$CLIENT_URL" -o client.jar
+          curl -fsSL "$MAPPINGS_URL" -o client.txt
+
+      - name: Inspect passenger attachment and dismount bytecode
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > targets.tsv
+          import re
+          owner_named = owner_obf = None
+          wanted = {
+              'getPassengerAttachmentPoint',
+              'getDismountLocationForPassenger',
+              'getDefaultPassengerAttachmentPoint'
+          }
+          for raw in open('client.txt', encoding='utf-8'):
+              line=raw.rstrip('\n')
+              if line and not line.startswith(' '):
+                  m=re.match(r'([^ ]+) -> ([^:]+):$', line)
+                  if m:
+                      owner_named, owner_obf=m.groups()
+                  continue
+              for name in wanted:
+                  if re.search(r'\b'+re.escape(name)+r'\(', line):
+                      m=re.search(r'\s([A-Za-z0-9_$<>]+)\([^)]*\) -> ([A-Za-z0-9_$]+)$', line.strip())
+                      if m:
+                          print('\t'.join((owner_named, owner_obf, name, m.group(2), line.strip())))
+          PY
+          echo '=== Official mapping targets ==='
+          cat targets.tsv
+          echo
+          while IFS=$'\t' read -r NAMED_OWNER OBF_OWNER NAMED_METHOD OBF_METHOD REST; do
+            echo "=== $NAMED_OWNER.$NAMED_METHOD -> $OBF_OWNER.$OBF_METHOD ==="
+            javap -classpath client.jar -c -p "$OBF_OWNER" > class.dump
+            LINE=$(grep -n -m1 -E "[[:space:]]${OBF_METHOD}\(" class.dump | cut -d: -f1 || true)
+            if [ -n "$LINE" ]; then
+              END=$((LINE+100))
+              sed -n "${LINE},${END}p" class.dump
+            else
+              echo "Method not found directly on mapped owner"
+            fi
+            echo
+          done < targets.tsv
+
+      - name: Inspect EntityDimensions attachment defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > classes.tsv
+          import re
+          wanted={
+            'net.minecraft.world.entity.EntityDimensions',
+            'net.minecraft.world.entity.EntityAttachments',
+            'net.minecraft.world.entity.EntityAttachment'
+          }
+          for raw in open('client.txt', encoding='utf-8'):
+              line=raw.rstrip('\n')
+              if line and not line.startswith(' '):
+                  m=re.match(r'([^ ]+) -> ([^:]+):$', line)
+                  if m and m.group(1) in wanted:
+                      print(m.group(1)+'\t'+m.group(2))
+          PY
+          cat classes.tsv
+          while IFS=$'\t' read -r NAMED OBF; do
+            echo "=== $NAMED -> $OBF ==="
+            javap -classpath client.jar -c -p "$OBF" | head -n 500
+          done < classes.tsv
