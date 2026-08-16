@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "hpm:raft",
+    "hpm:swashbuckler",
+    "hpm:swashbucklerupgraded",
+    "hpm:cutter",
+    "hpm:cuttermilitarised",
+    "hpm:cutter_pirate",
+    "hpm:corvette_steamship"
+  ]
+}
