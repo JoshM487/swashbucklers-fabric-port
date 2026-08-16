@@ -151,6 +151,15 @@ tasks.named('sourcesJar') {
     dependsOn prepareOriginalContent
 }
 
+// Package the dedicated Fabric client GameTest source set as an actual mod JAR.
+// ProductionRunTask only adds the main project JAR automatically, so explicitly adding
+// this JAR guarantees Loader can discover the fabric-client-gametest entrypoint.
+def gametestJar = tasks.register('gametestJar', Jar) {
+    dependsOn tasks.named('gametestClasses')
+    archiveClassifier = 'gametest'
+    from sourceSets.gametest.output
+}
+
 // Loom's production server launcher uses the same Fabric server launcher users install.
 tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask) {
     dependsOn tasks.named('jar')
@@ -172,6 +181,8 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
 // runs the gametest entrypoint, and shuts the client down when the test completes.
 tasks.register('runProductionClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
     dependsOn tasks.named('jar')
+    dependsOn gametestJar
+    mods.from(gametestJar.flatMap { it.archiveFile })
     runDir = file('build/prod-client-gametest')
     useXVFB = true
     jvmArgs.add('-Dfabric.client.gametest')
