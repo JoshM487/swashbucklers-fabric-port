@@ -79,7 +79,7 @@ java {
 
 tasks.named('jar') {
     dependsOn prepareOriginalContent
-    // Minecraft 26.1 uses official mappings in production, so this is the distributable JAR.
+    // Minecraft 26.1 is unobfuscated, so Loom's standard jar is the distributable output.
     from(generatedOriginal.map { it.dir('classes') })
 }
 
@@ -96,6 +96,13 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
     mods.from(tasks.named('jar').flatMap { it.archiveFile })
     programArgs.add('nogui')
     runDir = file('build/prod-server')
+
+    // Write EULA into Loom's resolved working directory immediately before its @TaskAction.
+    doFirst {
+        File dir = runDir.get().asFile
+        dir.mkdirs()
+        new File(dir, 'eula.txt').setText('eula=true\n', 'UTF-8')
+    }
 }
 
 // Production client launch validates client entrypoints, renderer registration, and model baking.

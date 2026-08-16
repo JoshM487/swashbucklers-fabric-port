@@ -30,23 +30,24 @@ jobs:
         run: gradle build --stacktrace --warning-mode all
 
       - name: Production Fabric server smoke test
+        continue-on-error: true
         shell: bash
         run: |
-          mkdir -p build/prod-server
-          echo 'eula=true' > eula.txt
-          echo 'eula=true' > build/prod-server/eula.txt
+          rm -f server-smoke.ok
           set +e
-          timeout 90s gradle prodServer --no-daemon --stacktrace > prod-server.log 2>&1
+          timeout --kill-after=10s 90s gradle prodServer --no-daemon --stacktrace > prod-server.log 2>&1
           status=$?
           set -e
-          cat prod-server.log
-          if grep -q 'Done (' prod-server.log || grep -q 'Done (' logs/latest.log 2>/dev/null || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
+          tail -n 500 prod-server.log
+
+          if grep -q 'Done (' prod-server.log || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
             echo 'Production Fabric server reached ready state.'
+            touch server-smoke.ok
             exit 0
           fi
+
           echo "Production server did not reach ready state (exit ${status})."
-          if [ "${status}" -eq 0 ]; then status=1; fi
-          exit "${status}"
+          exit 1
 
       - name: Ensure XVFB is available
         shell: bash
@@ -57,10 +58,12 @@ jobs:
           fi
 
       - name: Production Fabric client and custom-model smoke test
+        continue-on-error: true
         shell: bash
         run: |
+          rm -f client-smoke.ok
           set +e
-          timeout 90s gradle prodClient --no-daemon --stacktrace > prod-client.log 2>&1
+          timeout --kill-after=10s 90s gradle prodClient --no-daemon --stacktrace > prod-client.log 2>&1
           status=$?
           set -e
           tail -n 500 prod-client.log
@@ -83,10 +86,25 @@ jobs:
 
           if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then
             echo "Production client exited unexpectedly with status ${status}."
-            exit "${status}"
+            exit 1
           fi
 
           echo 'Production Fabric client loaded and all six original ship models baked successfully.'
+          touch client-smoke.ok
+
+      - name: Require production validation
+        shell: bash
+        run: |
+          failed=0
+          if [ ! -f server-smoke.ok ]; then
+            echo 'Server production smoke test failed.'
+            failed=1
+          fi
+          if [ ! -f client-smoke.ok ]; then
+            echo 'Client/custom-model production smoke test failed.'
+            failed=1
+          fi
+          exit "${failed}"
 
       - name: Upload build outputs
         if: always()
@@ -97,4 +115,6 @@ jobs:
             build/libs/*.jar
             prod-server.log
             prod-client.log
+            server-smoke.ok
+            client-smoke.ok
           if-no-files-found: ignore
