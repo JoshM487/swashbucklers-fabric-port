@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "hpm",
+  "version": "${version}",
+  "name": "Swashbucklers!",
+  "description": "Fabric 26.1.2 compatibility port of Swashbucklers!",
+  "authors": ["Halbear"],
+  "license": "All Rights Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["hal.studios.hpm.HpmMod"],
+    "client": ["hal.studios.hpm.client.HpmClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "~26.1.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
