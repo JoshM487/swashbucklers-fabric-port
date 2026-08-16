@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aba",
+    "aaa"
+  ],
+  "key": {
+    "a": "#minecraft:planks",
+    "b": "#minecraft:logs"
+  },
+  "result": {
+    "id": "hpm:smallhull",
+    "count": 1
+  }
+}

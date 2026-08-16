@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "hpm:small_mast",
+    "hpm:small_mast"
+  ],
+  "result": {
+    "id": "hpm:largemast",
+    "count": 1
+  }
+}

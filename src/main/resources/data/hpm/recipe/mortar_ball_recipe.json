@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aba",
+    "bcb",
+    "aba"
+  ],
+  "key": {
+    "a": "minecraft:smooth_stone",
+    "b": "minecraft:tnt",
+    "c": "hpm:cannonball"
+  },
+  "result": {
+    "id": "hpm:mortar_ball",
+    "count": 6
+  }
+}

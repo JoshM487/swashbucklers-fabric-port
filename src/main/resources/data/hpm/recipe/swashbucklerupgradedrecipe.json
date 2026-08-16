@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:chest",
+    "hpm:hand_cannon",
+    "hpm:swashbuckleritem",
+    "minecraft:chest"
+  ],
+  "result": {
+    "id": "hpm:swashbucklerupgrade",
+    "count": 1
+  }
+}

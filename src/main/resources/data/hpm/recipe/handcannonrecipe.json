@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aaa",
+    " bc",
+    "aaa"
+  ],
+  "key": {
+    "a": "minecraft:cobbled_deepslate_slab",
+    "b": "hpm:cannonball",
+    "c": "minecraft:gunpowder"
+  },
+  "result": {
+    "id": "hpm:hand_cannon",
+    "count": 1
+  }
+}

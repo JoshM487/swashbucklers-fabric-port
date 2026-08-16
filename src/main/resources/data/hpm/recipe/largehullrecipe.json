@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " a ",
+    "bcb",
+    "bbb"
+  ],
+  "key": {
+    "a": "minecraft:iron_block",
+    "b": "#minecraft:logs",
+    "c": "hpm:smallhull"
+  },
+  "result": {
+    "id": "hpm:largehull",
+    "count": 1
+  }
+}

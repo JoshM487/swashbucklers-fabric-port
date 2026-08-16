@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aaa",
+    "aba",
+    " b "
+  ],
+  "key": {
+    "a": "#minecraft:wool",
+    "b": "#minecraft:logs"
+  },
+  "result": {
+    "id": "hpm:small_mast",
+    "count": 1
+  }
+}

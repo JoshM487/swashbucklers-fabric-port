@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aaa",
+    "aba",
+    "aca"
+  ],
+  "key": {
+    "a": "minecraft:black_dye",
+    "b": "minecraft:white_dye",
+    "c": "hpm:cuttermilitariseditem"
+  },
+  "result": {
+    "id": "hpm:pirate_cutter_item",
+    "count": 1
+  }
+}
