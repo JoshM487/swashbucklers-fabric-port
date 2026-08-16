@@ -40,15 +40,11 @@ final class HpmShipControlState {
         }
 
         if (!this.hadPilot) {
-            // The original right-click procedure copied the ship's current yaw into the
-            // pilot's shipYaw variable. Keep the ship orientation it had when boarded.
             this.shipYaw = wrapDegrees(ship.getYRot());
             this.sailSpeed = 0.0F;
             this.hadPilot = true;
         }
 
-        // Player variables in the original mod changed by exactly one percentage point
-        // per tick, clamped to 100% ahead and -40% astern.
         if (this.sailUp && this.sailSpeed < 100.0F) {
             this.sailSpeed = Math.min(100.0F, this.sailSpeed + 1.0F);
         }
@@ -56,8 +52,6 @@ final class HpmShipControlState {
             this.sailSpeed = Math.max(-40.0F, this.sailSpeed - 1.0F);
         }
 
-        // Original steering only worked with positive sail speed. Small and medium
-        // ships used ~3 degrees/tick, while the corvette used 1 degree/tick.
         if (this.sailSpeed > 0.1F) {
             if (this.turnLeft) {
                 this.shipYaw -= this.turnDegreesPerTick;
@@ -70,22 +64,19 @@ final class HpmShipControlState {
 
         ship.setYRot(this.shipYaw);
 
-        // Vanilla boats are locally vehicle-controlled. Only the controlling client
-        // should generate horizontal motion; the server receives the normal vehicle
-        // movement packets. Running this again on the dedicated server with no local
-        // key state would fight the client and cause rubber-banding.
+        // Minecraft's boat vehicle movement remains client-authoritative; applying a
+        // second zero-input simulation on the dedicated server would fight its rider.
         if (!ship.level().isClientSide()) {
             return;
         }
 
-        if (!ship.isInWaterOrBubble()) {
+        // 26.1 removed Entity#isInWaterOrBubble. Probe the actual fluid directly,
+        // matching the original procedures rather than substituting another Boat API.
+        if (!HpmShipPhysics.isWaterAt(ship, 0.0D)) {
             return;
         }
 
         Vec3 current = ship.getDeltaMovement();
-
-        // These two guards are copied from the original SailspeedProcedure. They reset
-        // a non-trivial throttle if the ship is physically blocked and has no X/Z motion.
         if (current.x == 0.0D && current.z == 0.0D) {
             if (this.sailSpeed > 8.0F || this.sailSpeed < -5.0F) {
                 this.sailSpeed = 0.0F;
