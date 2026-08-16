@@ -26,13 +26,33 @@ jobs:
         with:
           gradle-version: '9.5.1'
 
-      - name: Build against real Minecraft 26.1.2
+      - name: Build and remap for Minecraft 26.1.2
         run: gradle build --stacktrace --warning-mode all
+
+      - name: Production Fabric server smoke test
+        shell: bash
+        run: |
+          mkdir -p build/prod-server
+          echo 'eula=true' > build/prod-server/eula.txt
+          set +e
+          timeout 90s gradle prodServer --no-daemon --stacktrace > prod-server.log 2>&1
+          status=$?
+          set -e
+          cat prod-server.log
+          if grep -q 'Done (' prod-server.log || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
+            echo 'Production Fabric server reached ready state.'
+            exit 0
+          fi
+          echo "Production server did not reach ready state (exit ${status})."
+          if [ "${status}" -eq 0 ]; then status=1; fi
+          exit "${status}"
 
       - name: Upload build outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: swashbucklers-build
-          path: build/libs/*.jar
+          path: |
+            build/libs/*.jar
+            prod-server.log
           if-no-files-found: ignore

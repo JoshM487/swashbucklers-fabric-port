@@ -5,6 +5,9 @@ plugins {
 group = project.maven_group
 version = project.mod_version
 def portVersion = project.version.toString()
+def mcVersion = project.minecraft_version.toString()
+def fabricLoaderVersion = project.loader_version.toString()
+def fabricApiVersion = project.fabric_api_version.toString()
 
 base {
     archivesName = project.archives_base_name
@@ -20,16 +23,20 @@ repositories {
 
 configurations {
     originalSwashbucklers
+    productionMods
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    minecraft "com.mojang:minecraft:${mcVersion}"
+    implementation "net.fabricmc:fabric-loader:${fabricLoaderVersion}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
 
     // Original Swashbucklers! 2.6.6B NeoForge 1.21.4 JAR (CurseForge file 6536692).
     // Used only as a source for the author's textures and Blockbench model bytecode.
     originalSwashbucklers "curse.maven:swashbucklers-746320:6536692"
+
+    // Explicit mod set for Loom's production-runtime smoke tests.
+    productionMods "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
 }
 
 def generatedOriginal = layout.buildDirectory.dir('generated/swashbucklers-original')
@@ -79,4 +86,17 @@ tasks.named('jar') {
 
 tasks.named('sourcesJar') {
     dependsOn prepareOriginalContent
+}
+
+// This uses Fabric Loom's production launcher, not the named development runtime.
+// It specifically catches remapping/linkage failures that only occur in a real Fabric install.
+tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask) {
+    dependsOn tasks.named('remapJar')
+    installerVersion = '1.1.2'
+    loaderVersion = fabricLoaderVersion
+    minecraftVersion = mcVersion
+    mods.from(tasks.named('remapJar').flatMap { it.archiveFile })
+    mods.from(configurations.productionMods)
+    programArgs.add('nogui')
+    runDir = file('build/prod-server')
 }
