@@ -15,6 +15,7 @@ public final class HpmBoat extends Boat implements HpmControllableShip {
     private final double buoyancyProbeYOffset;
     private final double buoyancyLiftVelocity;
     private final HpmShipControlState control;
+    private boolean runningVanillaBoatTick;
 
     public HpmBoat(EntityType<? extends Boat> type, Level level, Supplier<Item> dropItem,
             double buoyancyProbeYOffset, double buoyancyLiftVelocity,
@@ -27,15 +28,36 @@ public final class HpmBoat extends Boat implements HpmControllableShip {
 
     @Override
     public void tick() {
-        super.tick();
+        /*
+         * AbstractBoat contains a vanilla-only safety that ejects passengers after the
+         * hull has been considered underwater for roughly 60 ticks. The original
+         * Swashbucklers ships were PathfinderMob vehicles and never had that behavior.
+         * Mark only the call into vanilla Boat.tick so ejectPassengers can distinguish
+         * that internal auto-eject from a real external ejection/removal.
+         */
+        this.runningVanillaBoatTick = true;
+        try {
+            super.tick();
+        } finally {
+            this.runningVanillaBoatTick = false;
+        }
+
         HpmShipPhysics.applyOriginalBuoyancy(this, this.buoyancyProbeYOffset, this.buoyancyLiftVelocity);
         this.control.tickOriginalControls(this);
     }
 
+    @Override
+    public void ejectPassengers() {
+        if (this.runningVanillaBoatTick && this.getControllingPassenger() != null) {
+            return;
+        }
+        super.ejectPassengers();
+    }
+
     /**
-     * Capture the normal movement key states, but deliberately do not pass them to
-     * Boat. Vanilla Boat would immediately row/turn; Swashbucklers instead used the
-     * keys to alter persistent sail percentage and ship yaw.
+     * Capture normal movement key states but deliberately do not pass them to Boat.
+     * Swashbucklers used W/S for persistent sail percentage and A/D for ship yaw,
+     * rather than vanilla rowing.
      */
     @Override
     public void setInput(boolean left, boolean right, boolean forward, boolean back) {
@@ -55,9 +77,8 @@ public final class HpmBoat extends Boat implements HpmControllableShip {
     }
 
     /**
-     * The original primary ship entities inherited generic Entity dismounting rather
-     * than Boat's shore/side search. Generic vehicles dismount from the vehicle's top
-     * centre, so keep the player with the ship instead of ejecting them to a boat side.
+     * Original ships inherited generic Entity dismounting rather than Boat's
+     * side/shore search, so put the rider at the ship's top centre.
      */
     @Override
     public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
