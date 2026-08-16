@@ -39,12 +39,26 @@ final class HpmShipControlState {
             return;
         }
 
+        /*
+         * Vanilla vehicle movement is controlled by the riding client and then sent to
+         * the logical server. Keep the recreated Swashbucklers sail/yaw state on that
+         * same authority path. If the server independently ran its copy with no key
+         * state it would continually overwrite the client's ship yaw and cause
+         * rubber-banding in multiplayer.
+         */
+        if (!ship.level().isClientSide()) {
+            return;
+        }
+
         if (!this.hadPilot) {
+            // The original right-click procedure copied the ship's existing YRot into
+            // the rider's shipYaw variable. Boarding never rotated the hull to camera.
             this.shipYaw = wrapDegrees(ship.getYRot());
             this.sailSpeed = 0.0F;
             this.hadPilot = true;
         }
 
+        // Original controls changed persistent sail percentage one point per tick.
         if (this.sailUp && this.sailSpeed < 100.0F) {
             this.sailSpeed = Math.min(100.0F, this.sailSpeed + 1.0F);
         }
@@ -52,6 +66,7 @@ final class HpmShipControlState {
             this.sailSpeed = Math.max(-40.0F, this.sailSpeed - 1.0F);
         }
 
+        // Original steering only operated while moving ahead.
         if (this.sailSpeed > 0.1F) {
             if (this.turnLeft) {
                 this.shipYaw -= this.turnDegreesPerTick;
@@ -64,19 +79,15 @@ final class HpmShipControlState {
 
         ship.setYRot(this.shipYaw);
 
-        // Minecraft's boat vehicle movement remains client-authoritative; applying a
-        // second zero-input simulation on the dedicated server would fight its rider.
-        if (!ship.level().isClientSide()) {
-            return;
-        }
-
-        // 26.1 removed Entity#isInWaterOrBubble. Probe the actual fluid directly,
-        // matching the original procedures rather than substituting another Boat API.
+        // Use the same direct fluid probe as the recovered original buoyancy procedure.
         if (!HpmShipPhysics.isWaterAt(ship, 0.0D)) {
             return;
         }
 
         Vec3 current = ship.getDeltaMovement();
+
+        // Original SailspeedProcedure reset a significant throttle when physically
+        // blocked and both horizontal velocity components were exactly zero.
         if (current.x == 0.0D && current.z == 0.0D) {
             if (this.sailSpeed > 8.0F || this.sailSpeed < -5.0F) {
                 this.sailSpeed = 0.0F;
