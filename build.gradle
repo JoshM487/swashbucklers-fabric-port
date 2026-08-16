@@ -11,15 +11,50 @@ base {
 
 repositories {
     mavenCentral()
+    maven {
+        url = 'https://www.cursemaven.com'
+        content { includeGroup 'curse.maven' }
+    }
+}
+
+configurations {
+    originalSwashbucklers
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // Original Swashbucklers! 2.6.6B NeoForge 1.21.4 JAR (CurseForge file 6536692).
+    // Used only as a source for the author's textures and Blockbench model bytecode.
+    originalSwashbucklers "curse.maven:swashbucklers-746320:6536692"
+}
+
+def generatedOriginal = layout.buildDirectory.dir('generated/swashbucklers-original')
+
+tasks.register('prepareOriginalContent', Exec) {
+    inputs.files(configurations.originalSwashbucklers)
+    inputs.file('tools/prepare_original.py')
+    outputs.dir(generatedOriginal)
+
+    doFirst {
+        def originalJar = configurations.originalSwashbucklers.singleFile
+        commandLine 'python3',
+            file('tools/prepare_original.py').absolutePath,
+            originalJar.absolutePath,
+            generatedOriginal.get().asFile.absolutePath
+    }
+}
+
+sourceSets {
+    main {
+        resources.srcDir(generatedOriginal.map { it.dir('resources') })
+    }
 }
 
 processResources {
+    dependsOn tasks.named('prepareOriginalContent')
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
         expand "version": project.version
@@ -36,7 +71,8 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
-// Original Blockbench geometry will be restored after the real 26.1.2 API build passes.
 tasks.named('jar') {
-    from('src/main/prebuilt-classes')
+    dependsOn tasks.named('prepareOriginalContent')
+    // Feed the recovered named model classes through Loom's normal remapJar step.
+    from(generatedOriginal.map { it.dir('classes') })
 }
