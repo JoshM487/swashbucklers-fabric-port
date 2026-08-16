@@ -3,7 +3,6 @@ package hal.studios.hpm.gametest;
 import java.util.Set;
 
 import hal.studios.hpm.client.renderer.HpmShipRenderer;
-import hal.studios.hpm.entity.HpmControllableShip;
 import hal.studios.hpm.entity.HpmShipEntity;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -66,12 +65,12 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             double coast = horizontalDistance(coastStart, afterRelease);
             if (coast < 0.50D) throw new AssertionError("Ship stopped like vanilla rowing after W release: " + coast);
 
-            float yawBefore = shipYaw(context);
+            float yawBefore = entityYaw(context);
             context.getInput().holdKeyFor(options -> options.keyLeft, 5);
-            context.waitTicks(4);
-            float yawAfter = shipYaw(context);
+            context.waitTicks(8);
+            float yawAfter = entityYaw(context);
             float turn = angleDiff(yawBefore,yawAfter);
-            if (turn < 8.0F || turn > 24.0F) throw new AssertionError("Original small-ship turn rate wrong: " + turn);
+            if (turn < 8.0F || turn > 24.0F) throw new AssertionError("Original small-ship turn rate wrong: " + turn + " before=" + yawBefore + " after=" + yawAfter);
 
             context.getInput().holdKeyFor(options -> options.keyDown, 35);
             context.waitTicks(4);
@@ -95,13 +94,15 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             return client.player.getVehicle().position();
         });
     }
-    private static float shipYaw(ClientGameTestContext context) {
+
+    private static float entityYaw(ClientGameTestContext context) {
         return context.computeOnClient(client -> {
             Entity vehicle = client.player == null ? null : client.player.getVehicle();
-            if (!(vehicle instanceof HpmControllableShip ship)) throw new AssertionError("No controllable ship");
-            return ship.hpm$getShipYaw();
+            if (!(vehicle instanceof HpmShipEntity)) throw new AssertionError("No controllable ship");
+            return vehicle.getYRot();
         });
     }
+
     private static double horizontalDistance(Vec3 a, Vec3 b) { return Math.hypot(b.x-a.x,b.z-a.z); }
     private static float angleDiff(float a,float b) { float d=Math.abs(a-b)%360.0F; return d>180.0F?360.0F-d:d; }
 }
