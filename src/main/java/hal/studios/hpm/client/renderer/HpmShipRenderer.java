@@ -4,6 +4,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 
 import hal.studios.hpm.client.model.HpmShipModel;
 import net.minecraft.client.model.EntityModel;
@@ -34,7 +35,17 @@ public final class HpmShipRenderer extends AbstractBoatRenderer {
 
     @Override
     public void submit(BoatRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
+        /*
+         * The recovered Blockbench geometry was authored for the original MobRenderer.
+         * AbstractBoatRenderer applies the vanilla boat model's extra +90 degree Y-axis
+         * convention; leaving that in place makes every Swashbucklers hull visually
+         * broadside to its actual entity yaw. Cancel that boat-only model-axis rotation
+         * so the bow again points along the ship's movement/look direction.
+         */
+        poseStack.pushPose();
+        poseStack.mulPose(Axis.YP.rotationDegrees(-90.0F));
         super.submit(state, poseStack, nodeCollector, cameraState);
+        poseStack.popPose();
 
         if (Boolean.getBoolean("hpm.ci.renderTest") && CI_RENDERED_IDS.add(this.debugId)) {
             System.out.println("SWASHBUCKLERS_RENDER_OK " + this.debugId);
