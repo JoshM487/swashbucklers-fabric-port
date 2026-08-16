@@ -26,26 +26,67 @@ jobs:
         with:
           gradle-version: '9.5.1'
 
-      - name: Build and remap for Minecraft 26.1.2
+      - name: Build for Minecraft 26.1.2
         run: gradle build --stacktrace --warning-mode all
 
       - name: Production Fabric server smoke test
         shell: bash
         run: |
           mkdir -p build/prod-server
+          echo 'eula=true' > eula.txt
           echo 'eula=true' > build/prod-server/eula.txt
           set +e
           timeout 90s gradle prodServer --no-daemon --stacktrace > prod-server.log 2>&1
           status=$?
           set -e
           cat prod-server.log
-          if grep -q 'Done (' prod-server.log || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
+          if grep -q 'Done (' prod-server.log || grep -q 'Done (' logs/latest.log 2>/dev/null || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
             echo 'Production Fabric server reached ready state.'
             exit 0
           fi
           echo "Production server did not reach ready state (exit ${status})."
           if [ "${status}" -eq 0 ]; then status=1; fi
           exit "${status}"
+
+      - name: Ensure XVFB is available
+        shell: bash
+        run: |
+          if ! command -v Xvfb >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Production Fabric client and custom-model smoke test
+        shell: bash
+        run: |
+          set +e
+          timeout 90s gradle prodClient --no-daemon --stacktrace > prod-client.log 2>&1
+          status=$?
+          set -e
+          tail -n 500 prod-client.log
+
+          models=(
+            Modelraft
+            Modelswashbuckler
+            Modelswashbucklerupgraded
+            Modelcutterremastered
+            Modelcutterweaponisedremastered
+            Modelcorvetteclass
+          )
+
+          for model in "${models[@]}"; do
+            if ! grep -q "SWASHBUCKLERS_MODEL_OK ${model}" prod-client.log; then
+              echo "Custom model did not bake successfully: ${model}"
+              exit 1
+            fi
+          done
+
+          if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then
+            echo "Production client exited unexpectedly with status ${status}."
+            exit "${status}"
+          fi
+
+          echo 'Production Fabric client loaded and all six original ship models baked successfully.'
 
       - name: Upload build outputs
         if: always()
@@ -55,4 +96,5 @@ jobs:
           path: |
             build/libs/*.jar
             prod-server.log
+            prod-client.log
           if-no-files-found: ignore

@@ -38,7 +38,9 @@ public final class HpmShipModelLayers {
         String name = "hal.studios.hpm.client.model." + simpleName;
         try {
             Class<?> clazz = Class.forName(name);
-            return (LayerDefinition) clazz.getMethod("createBodyLayer").invoke(null);
+            LayerDefinition definition = (LayerDefinition) clazz.getMethod("createBodyLayer").invoke(null);
+            System.out.println("SWASHBUCKLERS_MODEL_OK " + simpleName);
+            return definition;
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException e) {
             throw new IllegalStateException("Unable to load original Swashbucklers model " + name, e);
         } catch (InvocationTargetException e) {

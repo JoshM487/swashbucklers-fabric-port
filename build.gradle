@@ -87,7 +87,7 @@ tasks.named('sourcesJar') {
     dependsOn prepareOriginalContent
 }
 
-// Loom's production launcher exercises the same official-mapped JAR users install.
+// Loom's production server launcher uses the same Fabric server launcher users install.
 tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask) {
     dependsOn tasks.named('jar')
     installerVersion = '1.1.2'
@@ -96,4 +96,12 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
     mods.from(tasks.named('jar').flatMap { it.archiveFile })
     programArgs.add('nogui')
     runDir = file('build/prod-server')
+}
+
+// Production client launch validates client entrypoints, renderer registration, and model baking.
+tasks.register('prodClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    dependsOn tasks.named('jar')
+    mods.from(tasks.named('jar').flatMap { it.archiveFile })
+    runDir = file('build/prod-client')
+    useXVFB = true
 }
