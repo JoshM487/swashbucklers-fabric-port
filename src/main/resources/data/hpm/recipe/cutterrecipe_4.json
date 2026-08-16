@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aaa",
+    "bcb",
+    "ddd"
+  ],
+  "key": {
+    "a": "hpm:largemast",
+    "b": "#minecraft:logs",
+    "c": "hpm:largehull",
+    "d": "minecraft:barrel"
+  },
+  "result": {
+    "id": "hpm:cutteritem",
+    "count": 1
+  }
+}
