@@ -17,13 +17,17 @@ final class HpmShipPhysics {
      * prevents the 26.1.2 compatibility boats from falling through the water column.
      */
     static void applyOriginalBuoyancy(Entity entity, double probeYOffset, double liftVelocity) {
-        BlockPos probe = BlockPos.containing(entity.getX(), entity.getY() + probeYOffset, entity.getZ());
-        if (!entity.level().getFluidState(probe).is(FluidTags.WATER)) {
+        if (!isWaterAt(entity, probeYOffset)) {
             return;
         }
 
         Vec3 velocity = entity.getDeltaMovement();
         entity.setDeltaMovement(velocity.x, liftVelocity, velocity.z);
         entity.fallDistance = 0.0F;
+    }
+
+    static boolean isWaterAt(Entity entity, double probeYOffset) {
+        BlockPos probe = BlockPos.containing(entity.getX(), entity.getY() + probeYOffset, entity.getZ());
+        return entity.level().getFluidState(probe).is(FluidTags.WATER);
     }
 }
