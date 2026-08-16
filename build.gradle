@@ -34,8 +34,18 @@ dependencies {
     // Used only as a source for the author's textures and Blockbench model bytecode.
     originalSwashbucklers "curse.maven:swashbucklers-746320:6536692"
 
-    // Loom production-run tasks load mods from this configuration.
+    // Loom production-run tasks load Fabric API from this configuration.
     productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'hpm-client-gametest'
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+    }
 }
 
 def generatedOriginal = layout.buildDirectory.dir('generated/swashbucklers-original')
@@ -151,7 +161,6 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
     programArgs.add('nogui')
     runDir = file('build/prod-server')
 
-    // Write EULA into Loom's resolved working directory immediately before its @TaskAction.
     doFirst {
         File dir = runDir.get().asFile
         dir.mkdirs()
@@ -159,12 +168,13 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
     }
 }
 
-// Production client launch validates client entrypoints, model baking, and an actual renderer draw path.
-tasks.register('prodClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+// Fabric's supported production client GameTest runner. This creates a real integrated world,
+// runs the gametest entrypoint, and shuts the client down when the test completes.
+tasks.register('runProductionClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
     dependsOn tasks.named('jar')
-    mods.from(tasks.named('jar').flatMap { it.archiveFile })
-    runDir = file('build/prod-client')
+    runDir = file('build/prod-client-gametest')
     useXVFB = true
+    jvmArgs.add('-Dfabric.client.gametest')
+    jvmArgs.add('-Dfabric.client.gametest.disableNetworkSynchronizer=true')
     jvmArgs.add('-Dhpm.ci.renderTest=true')
-    programArgs.addAll('--quickPlaySingleplayer', 'HpmCiWorld', '--width', '1280', '--height', '720')
 }
