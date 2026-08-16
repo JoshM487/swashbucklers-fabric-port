@@ -24,8 +24,8 @@ configurations {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
     // Original Swashbucklers! 2.6.6B NeoForge 1.21.4 JAR (CurseForge file 6536692).
     // Used only as a source for the author's textures and Blockbench model bytecode.
