@@ -14,230 +14,69 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
-
       - name: Set up Gradle 9.5.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.1'
-
       - name: Build for Minecraft 26.1.2
         run: gradle build --stacktrace --warning-mode all
-
       - name: Verify distributable JAR data resources
         shell: bash
         run: |
-          jar_file="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*sources*' | head -n 1)"
-          if [ -z "${jar_file}" ]; then
-            echo 'No distributable JAR found.'
-            exit 1
-          fi
-
-          source_list="$(mktemp)"
-          jar_list="$(mktemp)"
+          jar_file="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*sources*' ! -name '*gametest*' | head -n 1)"
+          test -n "${jar_file}"
+          source_list="$(mktemp)"; jar_list="$(mktemp)"
           find src/main/resources/data -type f -printf '%P\n' | sed 's#^#data/#' | sort > "${source_list}"
           jar tf "${jar_file}" | grep '^data/' | grep -v '/$' | sort > "${jar_list}"
-
-          echo 'Comparing src/main/resources/data against packaged JAR data...'
           diff -u "${source_list}" "${jar_list}"
-
           test "$(grep -c '^data/hpm/recipe/.*\.json$' "${jar_list}")" -eq 15
           test "$(grep -c '^data/hpm/advancement/.*\.json$' "${jar_list}")" -eq 13
           test "$(grep -c '^data/minecraft/tags/item/.*\.json$' "${jar_list}")" -eq 3
           grep -qx 'data/minecraft/tags/entity_type/boat.json' "${jar_list}"
-
-          for id in \
-            hpm:raft \
-            hpm:swashbuckler \
-            hpm:swashbucklerupgraded \
-            hpm:cutter \
-            hpm:cuttermilitarised \
-            hpm:cutter_pirate \
-            hpm:corvette_steamship; do
-            unzip -p "${jar_file}" data/minecraft/tags/entity_type/boat.json | grep -q "\"${id}\""
-          done
-
+          for id in hpm:raft hpm:swashbuckler hpm:swashbucklerupgraded hpm:cutter hpm:cuttermilitarised hpm:cutter_pirate hpm:corvette_steamship; do unzip -p "${jar_file}" data/minecraft/tags/entity_type/boat.json | grep -q "\"${id}\""; done
           echo 'Distributable JAR contains the complete 32-file datapack resource tree.'
-
-      - name: Production Fabric server ship buoyancy/persistence test
+      - name: Production Fabric server original ship buoyancy test
         continue-on-error: true
         shell: bash
         run: |
-          rm -f server-smoke.ok prod-server.log server.stdin
-          rm -rf build/prod-server
-          mkfifo server.stdin
-
-          set +e
-          timeout --kill-after=10s 120s gradle prodServer --no-daemon --stacktrace < server.stdin > prod-server.log 2>&1 &
-          runner_pid=$!
-          set -e
-          exec 3>server.stdin
-
-          ready=0
-          for _ in $(seq 1 90); do
-            if grep -q 'Done (' prod-server.log 2>/dev/null; then
-              ready=1
-              break
-            fi
-            if ! kill -0 "${runner_pid}" 2>/dev/null; then
-              break
-            fi
-            sleep 1
-          done
-
-          if [ "${ready}" -ne 1 ]; then
-            echo 'Production server never reached ready state.'
-            exec 3>&-
-            wait "${runner_pid}" || true
-            tail -n 800 prod-server.log || true
-            exit 1
-          fi
-
-          # Deep real-water pool: an uncorrected gravity-only ship reaches the floor here.
+          rm -f server-smoke.ok prod-server.log server.stdin; rm -rf build/prod-server; mkfifo server.stdin
+          set +e; timeout --kill-after=10s 120s gradle prodServer --no-daemon --stacktrace < server.stdin > prod-server.log 2>&1 & runner_pid=$!; set -e; exec 3>server.stdin
+          ready=0; for _ in $(seq 1 90); do if grep -q 'Done (' prod-server.log 2>/dev/null; then ready=1; break; fi; if ! kill -0 "${runner_pid}" 2>/dev/null; then break; fi; sleep 1; done
+          if [ "${ready}" -ne 1 ]; then exec 3>&-; wait "${runner_pid}" || true; tail -n 800 prod-server.log || true; exit 1; fi
           printf '%s\n' 'execute in minecraft:overworld run forceload add -2 -2 2 2' >&3
           printf '%s\n' 'execute in minecraft:overworld run fill -16 89 -4 16 89 24 minecraft:stone' >&3
           printf '%s\n' 'execute in minecraft:overworld run fill -16 90 -4 16 100 24 minecraft:water' >&3
-          printf '%s\n' 'execute in minecraft:overworld positioned 0 101 0 run setworldspawn ~ ~ ~' >&3
-
-          ships=(
-            hpm:raft
-            hpm:swashbuckler
-            hpm:swashbucklerupgraded
-            hpm:cutter
-            hpm:cuttermilitarised
-            hpm:cutter_pirate
-            hpm:corvette_steamship
-          )
-          xs=(-9 -6 -3 0 3 6 9)
-
-          for i in "${!ships[@]}"; do
-            printf 'execute in minecraft:overworld positioned %s 100 12 run summon %s ~ ~ ~\n' "${xs[$i]}" "${ships[$i]}" >&3
-          done
-
-          # Give gravity enough time to reproduce the reported ocean-floor failure.
+          ships=(hpm:raft hpm:swashbuckler hpm:swashbucklerupgraded hpm:cutter hpm:cuttermilitarised hpm:cutter_pirate hpm:corvette_steamship); xs=(-9 -6 -3 0 3 6 9)
+          for i in "${!ships[@]}"; do printf 'execute in minecraft:overworld positioned %s 100 12 run summon %s ~ ~ ~\n' "${xs[$i]}" "${ships[$i]}" >&3; done
           sleep 10
-
           for id in "${ships[@]}"; do
-            printf 'execute as @e[type=%s,limit=1] run say SWASHBUCKLERS_SHIP_PERSIST_OK %s\n' "${id}" "${id}" >&3
-            printf 'execute as @e[type=%s,limit=1] if entity @s[type=#minecraft:boat] run say SWASHBUCKLERS_BOAT_TAG_OK %s\n' "${id}" "${id}" >&3
-            # If the ship is still near the water surface, five blocks below it is water.
-            # A ship that sank to the y=89 floor fails this check.
-            printf 'execute as @e[type=%s,limit=1] at @s positioned ~ ~-5 ~ if block ~ ~ ~ minecraft:water run say SWASHBUCKLERS_SHIP_AFLOAT_OK %s\n' "${id}" "${id}" >&3
+            printf 'execute as @e[type=%s,limit=1] run say SWASHBUCKLERS_SHIP_PERSIST_OK %s\n' "$id" "$id" >&3
+            printf 'execute as @e[type=%s,limit=1] if entity @s[type=#minecraft:boat] run say SWASHBUCKLERS_BOAT_TAG_OK %s\n' "$id" "$id" >&3
+            printf 'execute as @e[type=%s,limit=1] at @s positioned ~ ~-5 ~ if block ~ ~ ~ minecraft:water run say SWASHBUCKLERS_SHIP_AFLOAT_OK %s\n' "$id" "$id" >&3
           done
-          printf '%s\n' 'save-all flush' >&3
-          sleep 4
-          printf '%s\n' 'stop' >&3
-          exec 3>&-
-
-          set +e
-          wait "${runner_pid}"
-          status=$?
-          set -e
-          tail -n 1000 prod-server.log
-
-          if [ "${status}" -ne 0 ]; then
-            echo "Production server process exited with status ${status}."
-            exit 1
-          fi
-
-          for id in "${ships[@]}"; do
-            grep -q "SWASHBUCKLERS_SHIP_PERSIST_OK ${id}" prod-server.log || {
-              echo "Ship disappeared after summon: ${id}"
-              exit 1
-            }
-            grep -q "SWASHBUCKLERS_BOAT_TAG_OK ${id}" prod-server.log || {
-              echo "Ship is not recognized by #minecraft:boat at runtime: ${id}"
-              exit 1
-            }
-            grep -q "SWASHBUCKLERS_SHIP_AFLOAT_OK ${id}" prod-server.log || {
-              echo "Ship sank below the allowed surface band: ${id}"
-              exit 1
-            }
-          done
-
-          echo 'Production server kept all seven ships alive, boat-tagged, and afloat in deep water.'
+          printf '%s\n' stop >&3; exec 3>&-; set +e; wait "$runner_pid"; status=$?; set -e; tail -n 1000 prod-server.log; test "$status" -eq 0
+          for id in "${ships[@]}"; do grep -q "SWASHBUCKLERS_SHIP_PERSIST_OK $id" prod-server.log; grep -q "SWASHBUCKLERS_BOAT_TAG_OK $id" prod-server.log; grep -q "SWASHBUCKLERS_SHIP_AFLOAT_OK $id" prod-server.log; done
           touch server-smoke.ok
-
       - name: Ensure XVFB is available
-        shell: bash
-        run: |
-          if ! command -v Xvfb >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xvfb
-          fi
-
-      - name: Production Fabric client GameTest render validation
+        run: if ! command -v Xvfb >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y xvfb; fi
+      - name: Production Fabric client original mounting/render/control validation
         continue-on-error: true
         shell: bash
         run: |
-          rm -f client-smoke.ok prod-client.log
-          rm -rf build/prod-client-gametest
-
-          set +e
-          timeout --kill-after=10s 150s gradle runProductionClientGameTest --no-daemon --stacktrace > prod-client.log 2>&1
-          status=$?
-          set -e
-          tail -n 1000 prod-client.log
-
-          if [ "${status}" -ne 0 ]; then
-            echo "Production client GameTest exited with status ${status}."
-            exit 1
-          fi
-
-          models=(
-            Modelraft
-            Modelswashbuckler
-            Modelswashbucklerupgraded
-            Modelcutterremastered
-            Modelcutterweaponisedremastered
-            Modelcorvetteclass
-          )
-          for model in "${models[@]}"; do
-            grep -q "SWASHBUCKLERS_MODEL_OK ${model}" prod-client.log || {
-              echo "Custom model did not bake successfully: ${model}"
-              exit 1
-            }
-          done
-
-          ships=(
-            hpm:raft
-            hpm:swashbuckler
-            hpm:swashbucklerupgraded
-            hpm:cutter
-            hpm:cuttermilitarised
-            hpm:cutter_pirate
-            hpm:corvette_steamship
-          )
-          for id in "${ships[@]}"; do
-            grep -q "SWASHBUCKLERS_RENDER_OK ${id}" prod-client.log || {
-              echo "Renderer submit path was never reached for: ${id}"
-              exit 1
-            }
-          done
-
+          rm -f client-smoke.ok prod-client.log; rm -rf build/prod-client-gametest
+          set +e; timeout --kill-after=10s 150s gradle runProductionClientGameTest --no-daemon --stacktrace > prod-client.log 2>&1; status=$?; set -e; tail -n 1200 prod-client.log; test "$status" -eq 0
+          for model in Modelraft Modelswashbuckler Modelswashbucklerupgraded Modelcutterremastered Modelcutterweaponisedremastered Modelcorvetteclass; do grep -q "SWASHBUCKLERS_MODEL_OK $model" prod-client.log; done
+          for id in hpm:raft hpm:swashbuckler hpm:swashbucklerupgraded hpm:cutter hpm:cuttermilitarised hpm:cutter_pirate hpm:corvette_steamship; do grep -q "SWASHBUCKLERS_RENDER_OK $id" prod-client.log; done
           grep -q 'SWASHBUCKLERS_CLIENT_RENDER_TEST_OK' prod-client.log
-          echo 'Production client GameTest rendered all seven ship entity types.'
+          grep -q 'SWASHBUCKLERS_ORIGINAL_CONTROL_OK' prod-client.log
           touch client-smoke.ok
-
       - name: Require production validation
-        shell: bash
-        run: |
-          failed=0
-          if [ ! -f server-smoke.ok ]; then
-            echo 'Server ship buoyancy/persistence production test failed.'
-            failed=1
-          fi
-          if [ ! -f client-smoke.ok ]; then
-            echo 'Client renderer production GameTest failed.'
-            failed=1
-          fi
-          exit "${failed}"
-
+        run: test -f server-smoke.ok && test -f client-smoke.ok
       - name: Upload build outputs
         if: always()
         uses: actions/upload-artifact@v4
