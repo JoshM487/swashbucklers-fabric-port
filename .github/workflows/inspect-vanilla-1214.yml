@@ -26,7 +26,6 @@ jobs:
           print(next(v['url'] for v in d['versions'] if v['id']=='1.21.4'))
           PY
           )
-          echo "Mojang version URL: $VERSION_URL"
           curl -fsSL "$VERSION_URL" -o version.json
           CLIENT_URL=$(python3 - <<'PY'
           import json
@@ -38,72 +37,50 @@ jobs:
           print(json.load(open('version.json'))['downloads']['client_mappings']['url'])
           PY
           )
+          echo "Mojang version URL: $VERSION_URL"
           echo "Mojang client URL: $CLIENT_URL"
           echo "Mojang client mappings URL: $MAPPINGS_URL"
           curl -fsSL "$CLIENT_URL" -o client.jar
           curl -fsSL "$MAPPINGS_URL" -o client.txt
 
-      - name: Inspect passenger attachment and dismount bytecode
+      - name: Print exact Entity passenger and dismount methods
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY' > targets.tsv
-          import re
-          owner_named = owner_obf = None
-          wanted = {
-              'getPassengerAttachmentPoint',
-              'getDismountLocationForPassenger',
-              'getDefaultPassengerAttachmentPoint'
-          }
-          for raw in open('client.txt', encoding='utf-8'):
-              line=raw.rstrip('\n')
-              if line and not line.startswith(' '):
-                  m=re.match(r'([^ ]+) -> ([^:]+):$', line)
-                  if m:
-                      owner_named, owner_obf=m.groups()
-                  continue
-              for name in wanted:
-                  if re.search(r'\b'+re.escape(name)+r'\(', line):
-                      m=re.search(r'\s([A-Za-z0-9_$<>]+)\([^)]*\) -> ([A-Za-z0-9_$]+)$', line.strip())
-                      if m:
-                          print('\t'.join((owner_named, owner_obf, name, m.group(2), line.strip())))
-          PY
-          echo '=== Official mapping targets ==='
-          cat targets.tsv
+          echo '=== Official mapping declarations ==='
+          grep -B3 -A1 -E 'getPassengerAttachmentPoint\(|getDefaultPassengerAttachmentPoint\(|getDismountLocationForPassenger\(' client.txt | head -n 80
           echo
-          while IFS=$'\t' read -r NAMED_OWNER OBF_OWNER NAMED_METHOD OBF_METHOD REST; do
-            echo "=== $NAMED_OWNER.$NAMED_METHOD -> $OBF_OWNER.$OBF_METHOD ==="
-            javap -classpath client.jar -c -p "$OBF_OWNER" > class.dump
-            LINE=$(grep -n -m1 -E "[[:space:]]${OBF_METHOD}\(" class.dump | cut -d: -f1 || true)
-            if [ -n "$LINE" ]; then
-              END=$((LINE+100))
-              sed -n "${LINE},${END}p" class.dump
-            else
-              echo "Method not found directly on mapped owner"
-            fi
-            echo
-          done < targets.tsv
+          javap -classpath client.jar -c -p -s bum > entity.dump
+          python3 - <<'PY'
+          text=open('entity.dump').read().splitlines()
+          wanted={
+              '(Lbum;Lbup;F)Lfbb;': 'Entity.getPassengerAttachmentPoint',
+              '(Lbum;Lbum;Lbuo;)Lfbb;': 'Entity.getDefaultPassengerAttachmentPoint',
+              '(Lbvi;)Lfbb;': 'Entity.getDismountLocationForPassenger',
+          }
+          for i,line in enumerate(text):
+              if line.strip().startswith('descriptor:'):
+                  desc=line.split('descriptor:',1)[1].strip()
+                  if desc in wanted:
+                      start=max(0,i-1)
+                      end=min(len(text),i+70)
+                      print('===',wanted[desc],desc,'===')
+                      print('\n'.join(text[start:end]))
+          PY
 
-      - name: Inspect EntityDimensions attachment defaults
+      - name: Print attachment default factories
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY' > classes.tsv
-          import re
-          wanted={
-            'net.minecraft.world.entity.EntityDimensions',
-            'net.minecraft.world.entity.EntityAttachments',
-            'net.minecraft.world.entity.EntityAttachment'
-          }
-          for raw in open('client.txt', encoding='utf-8'):
-              line=raw.rstrip('\n')
-              if line and not line.startswith(' '):
-                  m=re.match(r'([^ ]+) -> ([^:]+):$', line)
-                  if m and m.group(1) in wanted:
-                      print(m.group(1)+'\t'+m.group(2))
-          PY
-          cat classes.tsv
-          while IFS=$'\t' read -r NAMED OBF; do
-            echo "=== $NAMED -> $OBF ==="
-            javap -classpath client.jar -c -p "$OBF" | head -n 500
-          done < classes.tsv
+          echo '=== EntityAttachment enum mapping ==='
+          grep -A40 '^net.minecraft.world.entity.EntityAttachment -> ' client.txt
+          echo '=== EntityAttachments mapping ==='
+          grep -A100 '^net.minecraft.world.entity.EntityAttachments -> ' client.txt
+          echo '=== EntityAttachments.Builder mapping ==='
+          grep -A100 '^net.minecraft.world.entity.EntityAttachments[$]Builder -> ' client.txt || true
+          echo '=== EntityAttachment.PointProvider mapping ==='
+          grep -A100 '^net.minecraft.world.entity.EntityAttachment[$]' client.txt || true
+          echo '=== obfuscated EntityAttachment strategy bytecode bun$a ==='
+          javap -classpath client.jar -c -p -s 'bun$a'
+          echo '=== obfuscated EntityAttachments.Builder bytecode buo$a ==='
+          javap -classpath client.jar -c -p -s 'buo$a'
