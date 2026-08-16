@@ -39,3 +39,40 @@ jobs:
                       print('\n'.join(text[i:i+220]))
                       break
           PY
+
+      - name: Inspect custom mob renderer and entity APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          MCJAR="$HOME/.gradle/caches/fabric-loom/26.1.2/minecraft-client.jar"
+          for cls in \
+            net.minecraft.world.entity.Entity \
+            net.minecraft.world.entity.Mob \
+            net.minecraft.world.entity.PathfinderMob \
+            net.minecraft.client.renderer.entity.EntityRenderer \
+            net.minecraft.client.renderer.entity.LivingEntityRenderer \
+            net.minecraft.client.renderer.entity.MobRenderer \
+            net.minecraft.client.renderer.entity.state.EntityRenderState \
+            net.minecraft.client.renderer.entity.state.LivingEntityRenderState \
+            net.minecraft.client.model.EntityModel \
+            net.minecraft.network.protocol.common.custom.CustomPacketPayload \
+            net.minecraft.network.codec.StreamCodec \
+            net.minecraft.network.codec.ByteBufCodecs; do
+              echo "=== $cls ==="
+              javap -classpath "$MCJAR" -p -s "$cls" | head -n 260
+          done
+
+      - name: Inspect Fabric networking and tick APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          CP=$(find "$HOME/.gradle/caches/modules-2/files-2.1" -name '*.jar' -path '*fabric*' -printf '%p:' | sed 's/:$//')
+          for cls in \
+            net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry \
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking \
+            net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking \
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents \
+            net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry; do
+              echo "=== $cls ==="
+              javap -classpath "$CP" -p -s "$cls" | head -n 260 || true
+          done
