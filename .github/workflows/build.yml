@@ -29,25 +29,126 @@ jobs:
       - name: Build for Minecraft 26.1.2
         run: gradle build --stacktrace --warning-mode all
 
-      - name: Production Fabric server smoke test
+      - name: Verify distributable JAR data resources
+        shell: bash
+        run: |
+          jar_file="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*sources*' | head -n 1)"
+          if [ -z "${jar_file}" ]; then
+            echo 'No distributable JAR found.'
+            exit 1
+          fi
+
+          source_list="$(mktemp)"
+          jar_list="$(mktemp)"
+          find src/main/resources/data -type f -printf '%P\n' | sed 's#^#data/#' | sort > "${source_list}"
+          jar tf "${jar_file}" | grep '^data/' | grep -v '/$' | sort > "${jar_list}"
+
+          echo 'Comparing src/main/resources/data against packaged JAR data...'
+          diff -u "${source_list}" "${jar_list}"
+
+          test "$(grep -c '^data/hpm/recipe/.*\.json$' "${jar_list}")" -eq 15
+          test "$(grep -c '^data/hpm/advancement/.*\.json$' "${jar_list}")" -eq 13
+          test "$(grep -c '^data/minecraft/tags/item/.*\.json$' "${jar_list}")" -eq 3
+          grep -qx 'data/minecraft/tags/entity_type/boat.json' "${jar_list}"
+
+          for id in \
+            hpm:raft \
+            hpm:swashbuckler \
+            hpm:swashbucklerupgraded \
+            hpm:cutter \
+            hpm:cuttermilitarised \
+            hpm:cutter_pirate \
+            hpm:corvette_steamship; do
+            unzip -p "${jar_file}" data/minecraft/tags/entity_type/boat.json | grep -q "\"${id}\""
+          done
+
+          echo 'Distributable JAR contains the complete 32-file datapack resource tree.'
+
+      - name: Production Fabric server and ship-persistence test
         continue-on-error: true
         shell: bash
         run: |
-          rm -f server-smoke.ok
-          set +e
-          timeout --kill-after=10s 90s gradle prodServer --no-daemon --stacktrace > prod-server.log 2>&1
-          status=$?
-          set -e
-          tail -n 500 prod-server.log
+          rm -f server-smoke.ok prod-server.log server.stdin
+          rm -rf build/prod-server
+          mkfifo server.stdin
 
-          if grep -q 'Done (' prod-server.log || grep -q 'Done (' build/prod-server/logs/latest.log 2>/dev/null; then
-            echo 'Production Fabric server reached ready state.'
-            touch server-smoke.ok
-            exit 0
+          set +e
+          timeout --kill-after=10s 120s gradle prodServer --no-daemon --stacktrace < server.stdin > prod-server.log 2>&1 &
+          runner_pid=$!
+          set -e
+          exec 3>server.stdin
+
+          ready=0
+          for _ in $(seq 1 90); do
+            if grep -q 'Done (' prod-server.log 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "${runner_pid}" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "${ready}" -ne 1 ]; then
+            echo 'Production server never reached ready state.'
+            exec 3>&-
+            wait "${runner_pid}" || true
+            tail -n 800 prod-server.log || true
+            exit 1
           fi
 
-          echo "Production server did not reach ready state (exit ${status})."
-          exit 1
+          printf '%s\n' 'execute in minecraft:overworld run forceload add -1 -1 1 1' >&3
+          printf '%s\n' 'execute in minecraft:overworld run gamerule spawnRadius 0' >&3
+          printf '%s\n' 'execute in minecraft:overworld run fill -10 99 -2 10 99 20 minecraft:stone' >&3
+          printf '%s\n' 'execute in minecraft:overworld positioned 0 100 0 run setworldspawn ~ ~ ~' >&3
+
+          ships=(
+            hpm:raft
+            hpm:swashbuckler
+            hpm:swashbucklerupgraded
+            hpm:cutter
+            hpm:cuttermilitarised
+            hpm:cutter_pirate
+            hpm:corvette_steamship
+          )
+          xs=(-6 -4 -2 0 2 4 6)
+
+          for i in "${!ships[@]}"; do
+            printf 'execute in minecraft:overworld positioned %s 100 12 run summon %s ~ ~ ~\n' "${xs[$i]}" "${ships[$i]}" >&3
+          done
+
+          # Give the entities real server ticks. The broken builds lost them immediately.
+          sleep 8
+
+          for id in "${ships[@]}"; do
+            printf 'execute if entity @e[type=%s,limit=1] run say SWASHBUCKLERS_SHIP_PERSIST_OK %s\n' "${id}" "${id}" >&3
+          done
+          printf '%s\n' 'save-all flush' >&3
+          sleep 4
+          printf '%s\n' 'stop' >&3
+          exec 3>&-
+
+          set +e
+          wait "${runner_pid}"
+          status=$?
+          set -e
+          tail -n 800 prod-server.log
+
+          if [ "${status}" -ne 0 ]; then
+            echo "Production server process exited with status ${status}."
+            exit 1
+          fi
+
+          for id in "${ships[@]}"; do
+            if ! grep -q "SWASHBUCKLERS_SHIP_PERSIST_OK ${id}" prod-server.log; then
+              echo "Ship disappeared after summon: ${id}"
+              exit 1
+            fi
+          done
+
+          echo 'Production server kept all seven ship entities alive after real ticks.'
+          touch server-smoke.ok
 
       - name: Ensure XVFB is available
         shell: bash
@@ -57,7 +158,16 @@ jobs:
             sudo apt-get install -y xvfb
           fi
 
-      - name: Production Fabric client and custom-model smoke test
+      - name: Prepare production client render world
+        shell: bash
+        run: |
+          test -f server-smoke.ok
+          test -f build/prod-server/world/level.dat
+          rm -rf build/prod-client/saves/HpmCiWorld
+          mkdir -p build/prod-client/saves
+          cp -a build/prod-server/world build/prod-client/saves/HpmCiWorld
+
+      - name: Production Fabric client render test
         continue-on-error: true
         shell: bash
         run: |
@@ -66,7 +176,7 @@ jobs:
           timeout --kill-after=10s 90s gradle prodClient --no-daemon --stacktrace > prod-client.log 2>&1
           status=$?
           set -e
-          tail -n 500 prod-client.log
+          tail -n 800 prod-client.log
 
           models=(
             Modelraft
@@ -84,12 +194,29 @@ jobs:
             fi
           done
 
+          ships=(
+            hpm:raft
+            hpm:swashbuckler
+            hpm:swashbucklerupgraded
+            hpm:cutter
+            hpm:cuttermilitarised
+            hpm:cutter_pirate
+            hpm:corvette_steamship
+          )
+
+          for id in "${ships[@]}"; do
+            if ! grep -q "SWASHBUCKLERS_RENDER_OK ${id}" prod-client.log; then
+              echo "Renderer draw path was never reached for: ${id}"
+              exit 1
+            fi
+          done
+
           if [ "${status}" -ne 0 ] && [ "${status}" -ne 124 ]; then
             echo "Production client exited unexpectedly with status ${status}."
             exit 1
           fi
 
-          echo 'Production Fabric client loaded and all six original ship models baked successfully.'
+          echo 'Production client entered the test world and rendered all seven ship entity types.'
           touch client-smoke.ok
 
       - name: Require production validation
@@ -97,11 +224,11 @@ jobs:
         run: |
           failed=0
           if [ ! -f server-smoke.ok ]; then
-            echo 'Server production smoke test failed.'
+            echo 'Server/ship-persistence production test failed.'
             failed=1
           fi
           if [ ! -f client-smoke.ok ]; then
-            echo 'Client/custom-model production smoke test failed.'
+            echo 'Client renderer production test failed.'
             failed=1
           fi
           exit "${failed}"

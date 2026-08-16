@@ -55,6 +55,8 @@ def prepareOriginalContent = tasks.register('prepareOriginalContent', Exec) {
 
 sourceSets {
     main {
+        // src/main/resources remains the authoritative Fabric datapack/resource tree.
+        // Generated original client assets are layered in alongside it.
         resources.srcDir(generatedOriginal.map { it.dir('resources') })
     }
 }
@@ -64,6 +66,56 @@ processResources {
     inputs.property "version", portVersion
     filesMatching("fabric.mod.json") {
         expand "version": portVersion
+    }
+}
+
+def expectedShipIds = [
+    'hpm:raft',
+    'hpm:swashbuckler',
+    'hpm:swashbucklerupgraded',
+    'hpm:cutter',
+    'hpm:cuttermilitarised',
+    'hpm:cutter_pirate',
+    'hpm:corvette_steamship'
+]
+
+def verifyDatapackResources = tasks.register('verifyDatapackResources') {
+    dependsOn tasks.named('processResources')
+
+    doLast {
+        File processedRoot = layout.buildDirectory.dir('resources/main').get().asFile
+        File dataRoot = new File(processedRoot, 'data')
+        File boatTag = new File(dataRoot, 'minecraft/tags/entity_type/boat.json')
+
+        def allData = fileTree(dataRoot) { include '**/*.json' }.files
+        def recipes = fileTree(new File(dataRoot, 'hpm/recipe')) { include '**/*.json' }.files
+        def advancements = fileTree(new File(dataRoot, 'hpm/advancement')) { include '**/*.json' }.files
+        def itemTags = fileTree(new File(dataRoot, 'minecraft/tags/item')) { include '**/*.json' }.files
+
+        if (allData.size() != 32) {
+            throw new GradleException("Expected 32 processed data JSON files, found ${allData.size()}")
+        }
+        if (recipes.size() != 15) {
+            throw new GradleException("Expected 15 processed recipes, found ${recipes.size()}")
+        }
+        if (advancements.size() != 13) {
+            throw new GradleException("Expected 13 processed advancements, found ${advancements.size()}")
+        }
+        if (itemTags.size() != 3) {
+            throw new GradleException("Expected 3 processed item tags, found ${itemTags.size()}")
+        }
+        if (!boatTag.isFile()) {
+            throw new GradleException('Missing processed data/minecraft/tags/entity_type/boat.json')
+        }
+
+        String boatTagText = boatTag.getText('UTF-8')
+        expectedShipIds.each { id ->
+            if (!boatTagText.contains('"' + id + '"')) {
+                throw new GradleException("Boat entity tag is missing ${id}")
+            }
+        }
+
+        println 'Verified complete processed Swashbucklers datapack resources.'
     }
 }
 
@@ -79,7 +131,9 @@ java {
 
 tasks.named('jar') {
     dependsOn prepareOriginalContent
-    // Minecraft 26.1 is unobfuscated, so Loom's standard jar is the distributable output.
+    dependsOn verifyDatapackResources
+    // Minecraft 26.1 is unobfuscated: Fabric's porting guide replaces remapJar with jar.
+    // processResources output (including src/main/resources/data/**) is packaged here.
     from(generatedOriginal.map { it.dir('classes') })
 }
 
@@ -105,10 +159,12 @@ tasks.register('prodServer', net.fabricmc.loom.task.prod.ServerProductionRunTask
     }
 }
 
-// Production client launch validates client entrypoints, renderer registration, and model baking.
+// Production client launch validates client entrypoints, model baking, and an actual renderer draw path.
 tasks.register('prodClient', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
     dependsOn tasks.named('jar')
     mods.from(tasks.named('jar').flatMap { it.archiveFile })
     runDir = file('build/prod-client')
     useXVFB = true
+    jvmArgs.add('-Dhpm.ci.renderTest=true')
+    programArgs.addAll('--quickPlaySingleplayer', 'HpmCiWorld', '--width', '1280', '--height', '720')
 }
