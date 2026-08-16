@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "abc",
+    "ded",
+    "fgg"
+  ],
+  "key": {
+    "a": "hpm:small_mast",
+    "b": "hpm:largemast",
+    "c": "minecraft:iron_ingot",
+    "d": "hpm:largehull",
+    "e": "hpm:cutteritem",
+    "f": "hpm:hand_mortar",
+    "g": "hpm:hand_cannon"
+  },
+  "result": {
+    "id": "hpm:cuttermilitariseditem",
+    "count": 1
+  }
+}
