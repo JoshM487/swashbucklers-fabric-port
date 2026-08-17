@@ -33,8 +33,10 @@ public final class HpmClient implements ClientModInitializer {
             Entity vehicle = client.player.getVehicle();
             if (!(vehicle instanceof AbstractBoat) || !(vehicle instanceof HpmControllableShip)) return;
             int flags = 0;
-            if (client.options.keyUp.isDown()) flags |= 1;
-            if (client.options.keyDown.isDown()) flags |= 2;
+            // User-facing controls are intentionally inverted from the previous build:
+            // S raises sail/throttle, W lowers sail/throttle and continues into reverse.
+            if (client.options.keyUp.isDown()) flags |= 2;
+            if (client.options.keyDown.isDown()) flags |= 1;
             if (client.options.keyLeft.isDown()) flags |= 4;
             if (client.options.keyRight.isDown()) flags |= 8;
             if (ClientPlayNetworking.canSend(HpmShipInputPayload.TYPE)) {
