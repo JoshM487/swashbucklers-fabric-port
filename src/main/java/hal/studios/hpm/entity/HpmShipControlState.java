@@ -45,6 +45,25 @@ final class HpmShipControlState {
             this.hadPilot = true;
         }
 
+        boolean inWater = HpmShipPhysics.isWaterAt(ship, 0.0D);
+        Vec3 current = ship.getDeltaMovement();
+
+        /*
+         * Match the original 1.21.4 ordering. SailspeedProcedure ran on the
+         * player's POST tick, after the ship had already had a chance to move
+         * using the previous sail value. Therefore its "velocity == 0" stall
+         * reset checked the existing motion BEFORE the next +1/-1 sail change.
+         *
+         * Doing this check after incrementing made a ship starting from rest hit
+         * 9%, reset to 0%, and never accelerate. Keeping the same original rule
+         * but restoring the original ordering lets the first 1% create motion,
+         * while a genuinely blocked ship can still reset at >8% / <-5%.
+         */
+        if (inWater && current.x == 0.0D && current.z == 0.0D
+                && (this.sailSpeed > 8.0F || this.sailSpeed < -5.0F)) {
+            this.sailSpeed = 0.0F;
+        }
+
         if (this.sailUp && this.sailSpeed < 100.0F) {
             this.sailSpeed = Math.min(100.0F, this.sailSpeed + 1.0F);
         }
@@ -60,12 +79,7 @@ final class HpmShipControlState {
 
         ship.setYRot(this.shipYaw);
 
-        if (!HpmShipPhysics.isWaterAt(ship, 0.0D)) return;
-
-        Vec3 current = ship.getDeltaMovement();
-        if (current.x == 0.0D && current.z == 0.0D && (this.sailSpeed > 8.0F || this.sailSpeed < -5.0F)) {
-            this.sailSpeed = 0.0F;
-        }
+        if (!inWater) return;
 
         double scalar = ORIGINAL_WORLD_SPEED_MULTIPLIER * this.maxSpeed * (this.sailSpeed / 100.0D);
         double radians = Math.toRadians(this.shipYaw);
