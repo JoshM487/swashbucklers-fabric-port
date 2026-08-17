@@ -17,11 +17,11 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 
 public final class HpmClient implements ClientModInitializer {
-    // The three small recovered models sit much lower in AbstractBoatRenderer's
-    // model space than the cutter family. These are visual-origin corrections;
-    // entity buoyancy and sailing physics remain the original recovered values.
+    // These are visual-origin corrections only. Entity buoyancy and sailing
+    // physics remain unchanged from the recovered behavior.
     private static final double SMALL_SHIP_WATERLINE_OFFSET = 2.25D;
     private static final double CUTTER_WATERLINE_OFFSET = 0.75D;
+    private static final double CORVETTE_WATERLINE_OFFSET = 0.75D;
 
     @Override
     public void onInitializeClient() {
@@ -32,7 +32,7 @@ public final class HpmClient implements ClientModInitializer {
         register(HpmEntities.CUTTER, HpmShipModelLayers.CUTTER, "cutterremastered.png", "hpm:cutter", CUTTER_WATERLINE_OFFSET);
         register(HpmEntities.CUTTER_MILITARISED, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterweaponisedremastered.png", "hpm:cuttermilitarised", CUTTER_WATERLINE_OFFSET);
         register(HpmEntities.CUTTER_PIRATE, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterpirateremastered.png", "hpm:cutter_pirate", CUTTER_WATERLINE_OFFSET);
-        register(HpmEntities.CORVETTE_STEAMSHIP, HpmShipModelLayers.CORVETTE, "corvetteclass.png", "hpm:corvette_steamship", 0.0D);
+        register(HpmEntities.CORVETTE_STEAMSHIP, HpmShipModelLayers.CORVETTE, "corvetteclass.png", "hpm:corvette_steamship", CORVETTE_WATERLINE_OFFSET);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
