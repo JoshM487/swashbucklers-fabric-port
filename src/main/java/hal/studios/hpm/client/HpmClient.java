@@ -17,16 +17,18 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 
 public final class HpmClient implements ClientModInitializer {
+    private static final double NON_CORVETTE_WATERLINE_OFFSET = 0.75D;
+
     @Override
     public void onInitializeClient() {
         HpmShipModelLayers.register();
-        register(HpmEntities.RAFT, HpmShipModelLayers.RAFT, "raft.png", "hpm:raft");
-        register(HpmEntities.SWASHBUCKLER, HpmShipModelLayers.SWASHBUCKLER, "swashbuckler.png", "hpm:swashbuckler");
-        register(HpmEntities.SWASHBUCKLER_UPGRADED, HpmShipModelLayers.SWASHBUCKLER_UPGRADED, "swashbucklerupgraded.png", "hpm:swashbucklerupgraded");
-        register(HpmEntities.CUTTER, HpmShipModelLayers.CUTTER, "cutterremastered.png", "hpm:cutter");
-        register(HpmEntities.CUTTER_MILITARISED, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterweaponisedremastered.png", "hpm:cuttermilitarised");
-        register(HpmEntities.CUTTER_PIRATE, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterpirateremastered.png", "hpm:cutter_pirate");
-        register(HpmEntities.CORVETTE_STEAMSHIP, HpmShipModelLayers.CORVETTE, "corvetteclass.png", "hpm:corvette_steamship");
+        register(HpmEntities.RAFT, HpmShipModelLayers.RAFT, "raft.png", "hpm:raft", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.SWASHBUCKLER, HpmShipModelLayers.SWASHBUCKLER, "swashbuckler.png", "hpm:swashbuckler", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.SWASHBUCKLER_UPGRADED, HpmShipModelLayers.SWASHBUCKLER_UPGRADED, "swashbucklerupgraded.png", "hpm:swashbucklerupgraded", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER, HpmShipModelLayers.CUTTER, "cutterremastered.png", "hpm:cutter", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER_MILITARISED, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterweaponisedremastered.png", "hpm:cuttermilitarised", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER_PIRATE, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterpirateremastered.png", "hpm:cutter_pirate", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.CORVETTE_STEAMSHIP, HpmShipModelLayers.CORVETTE, "corvetteclass.png", "hpm:corvette_steamship", 0.0D);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
@@ -41,9 +43,6 @@ public final class HpmClient implements ClientModInitializer {
             if (client.options.keyLeft.isDown()) flags |= 4;
             if (client.options.keyRight.isDown()) flags |= 8;
 
-            // The recreated Swashbucklers sail simulation runs on the controlling client,
-            // so apply the held keys locally every tick. The packet below mirrors the
-            // same state to the server for multiplayer consistency/authority checks.
             ship.hpm$setOriginalInput(
                     (flags & 1) != 0,
                     (flags & 2) != 0,
@@ -57,8 +56,10 @@ public final class HpmClient implements ClientModInitializer {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void register(EntityType<? extends AbstractBoat> type, ModelLayerLocation layer, String textureName, String debugId) {
+    private static void register(EntityType<? extends AbstractBoat> type, ModelLayerLocation layer,
+            String textureName, String debugId, double verticalOffset) {
         Identifier texture = HpmMod.id("textures/entities/" + textureName);
-        EntityRenderers.register((EntityType) type, context -> new HpmShipRenderer(context, layer, texture, debugId));
+        EntityRenderers.register((EntityType) type,
+                context -> new HpmShipRenderer(context, layer, texture, debugId, verticalOffset));
     }
 }
