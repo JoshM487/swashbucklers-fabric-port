@@ -52,19 +52,19 @@ public final class HpmEntities {
     /*
      * Preserve the original 1.21.4 buoyancy probes/lift velocities. Visual
      * waterline corrections live in the renderer. Passenger attachment heights
-     * mirror those visual offsets so the pilot stays on the recovered deck.
+     * mirror those model offsets so the pilot remains on the visible deck.
      */
     public static final EntityType<ChestBoat> RAFT = chestBoat(
             "raft", 2.0f, 0.4f, () -> HpmItems.RAFTITEM,
-            0.3, 0.03, 0.45, 3.0f, 1.90);
+            0.3, 0.03, 0.45, 3.0f, 2.65);
 
     public static final EntityType<Boat> SWASHBUCKLER = boat(
             "swashbuckler", 1.5f, 0.45f, () -> HpmItems.SWASHBUCKLERITEM,
-            0.3, 0.03, 0.60, 3.0f, 1.55);
+            0.3, 0.03, 0.60, 3.0f, 2.30);
 
     public static final EntityType<ChestBoat> SWASHBUCKLER_UPGRADED = chestBoat(
             "swashbucklerupgraded", 1.3f, 0.45f, () -> HpmItems.SWASHBUCKLERUPGRADE,
-            0.3, 0.03, 0.70, 3.0f, 1.55);
+            0.3, 0.03, 0.70, 3.0f, 2.30);
 
     public static final EntityType<ChestBoat> CUTTER = chestBoat(
             "cutter", 1.6f, 0.7f, () -> HpmItems.CUTTERITEM,
