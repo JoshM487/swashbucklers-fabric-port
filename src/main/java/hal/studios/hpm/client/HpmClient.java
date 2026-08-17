@@ -31,7 +31,8 @@ public final class HpmClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
             Entity vehicle = client.player.getVehicle();
-            if (!(vehicle instanceof AbstractBoat) || !(vehicle instanceof HpmControllableShip)) return;
+            if (!(vehicle instanceof AbstractBoat) || !(vehicle instanceof HpmControllableShip ship)) return;
+
             int flags = 0;
             // User-facing controls are intentionally inverted from the previous build:
             // S raises sail/throttle, W lowers sail/throttle and continues into reverse.
@@ -39,6 +40,16 @@ public final class HpmClient implements ClientModInitializer {
             if (client.options.keyDown.isDown()) flags |= 1;
             if (client.options.keyLeft.isDown()) flags |= 4;
             if (client.options.keyRight.isDown()) flags |= 8;
+
+            // The recreated Swashbucklers sail simulation runs on the controlling client,
+            // so apply the held keys locally every tick. The packet below mirrors the
+            // same state to the server for multiplayer consistency/authority checks.
+            ship.hpm$setOriginalInput(
+                    (flags & 1) != 0,
+                    (flags & 2) != 0,
+                    (flags & 4) != 0,
+                    (flags & 8) != 0);
+
             if (ClientPlayNetworking.canSend(HpmShipInputPayload.TYPE)) {
                 ClientPlayNetworking.send(new HpmShipInputPayload(vehicle.getId(), flags));
             }
