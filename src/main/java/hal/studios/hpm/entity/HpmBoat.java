@@ -42,7 +42,8 @@ public final class HpmBoat extends Boat implements HpmControllableShip {
 
     @Override
     public void setInput(boolean left, boolean right, boolean forward, boolean back) {
-        this.control.setInput(forward, back, left, right);
+        // Flipped from the previous build: S raises sail/throttle; W lowers it.
+        this.control.setInput(back, forward, left, right);
     }
 
     @Override
