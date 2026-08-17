@@ -5,16 +5,23 @@ import java.util.function.Function;
 import hal.studios.hpm.item.CannonWeaponItem;
 import hal.studios.hpm.item.SpannerItem;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.BoatItem;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 public final class HpmItems {
     private HpmItems() {}
+
+    public static final ResourceKey<CreativeModeTab> SWASHBUCKLERS_TAB_KEY = ResourceKey.create(
+            BuiltInRegistries.CREATIVE_MODE_TAB.key(), HpmMod.id("swashbucklers"));
 
     private static ResourceKey<Item> key(String name) {
         return ResourceKey.create(Registries.ITEM, HpmMod.id(name));
@@ -46,7 +53,31 @@ public final class HpmItems {
     public static final Item HAND_CANNON = register("hand_cannon", p -> new CannonWeaponItem(p, CANNONBALL, 1), new Item.Properties().durability(59));
     public static final Item HAND_MORTAR = register("hand_mortar", p -> new CannonWeaponItem(p, MORTAR_BALL, 3), new Item.Properties().durability(59));
 
+    public static final CreativeModeTab SWASHBUCKLERS_TAB = FabricCreativeModeTab.builder()
+            .icon(() -> new ItemStack(SWASHBUCKLERITEM))
+            .title(Component.literal("Swashbucklers!"))
+            .displayItems((params, output) -> {
+                output.accept(RAFTITEM);
+                output.accept(SWASHBUCKLERITEM);
+                output.accept(SWASHBUCKLERUPGRADE);
+                output.accept(CUTTERITEM);
+                output.accept(CUTTERMILITARISEDITEM);
+                output.accept(PIRATE_CUTTER_ITEM);
+                output.accept(CORVETTE_STEAMSHIP_ITEM);
+                output.accept(HAND_CANNON);
+                output.accept(HAND_MORTAR);
+                output.accept(CANNONBALL);
+                output.accept(MORTAR_BALL);
+                output.accept(SPANNER);
+                output.accept(SMALLHULL);
+                output.accept(SMALL_MAST);
+                output.accept(LARGEHULL);
+                output.accept(LARGEMAST);
+            })
+            .build();
+
     public static void initialize() {
+        Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, SWASHBUCKLERS_TAB_KEY, SWASHBUCKLERS_TAB);
         CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register(output -> {
             output.accept(RAFTITEM);
             output.accept(SWASHBUCKLERITEM);
