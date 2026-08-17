@@ -17,17 +17,21 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 
 public final class HpmClient implements ClientModInitializer {
-    private static final double NON_CORVETTE_WATERLINE_OFFSET = 0.75D;
+    // The three small recovered models sit much lower in AbstractBoatRenderer's
+    // model space than the cutter family. Keep separate offsets instead of
+    // moving the entity/buoyancy physics themselves.
+    private static final double SMALL_SHIP_WATERLINE_OFFSET = 1.50D;
+    private static final double CUTTER_WATERLINE_OFFSET = 0.75D;
 
     @Override
     public void onInitializeClient() {
         HpmShipModelLayers.register();
-        register(HpmEntities.RAFT, HpmShipModelLayers.RAFT, "raft.png", "hpm:raft", NON_CORVETTE_WATERLINE_OFFSET);
-        register(HpmEntities.SWASHBUCKLER, HpmShipModelLayers.SWASHBUCKLER, "swashbuckler.png", "hpm:swashbuckler", NON_CORVETTE_WATERLINE_OFFSET);
-        register(HpmEntities.SWASHBUCKLER_UPGRADED, HpmShipModelLayers.SWASHBUCKLER_UPGRADED, "swashbucklerupgraded.png", "hpm:swashbucklerupgraded", NON_CORVETTE_WATERLINE_OFFSET);
-        register(HpmEntities.CUTTER, HpmShipModelLayers.CUTTER, "cutterremastered.png", "hpm:cutter", NON_CORVETTE_WATERLINE_OFFSET);
-        register(HpmEntities.CUTTER_MILITARISED, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterweaponisedremastered.png", "hpm:cuttermilitarised", NON_CORVETTE_WATERLINE_OFFSET);
-        register(HpmEntities.CUTTER_PIRATE, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterpirateremastered.png", "hpm:cutter_pirate", NON_CORVETTE_WATERLINE_OFFSET);
+        register(HpmEntities.RAFT, HpmShipModelLayers.RAFT, "raft.png", "hpm:raft", SMALL_SHIP_WATERLINE_OFFSET);
+        register(HpmEntities.SWASHBUCKLER, HpmShipModelLayers.SWASHBUCKLER, "swashbuckler.png", "hpm:swashbuckler", SMALL_SHIP_WATERLINE_OFFSET);
+        register(HpmEntities.SWASHBUCKLER_UPGRADED, HpmShipModelLayers.SWASHBUCKLER_UPGRADED, "swashbucklerupgraded.png", "hpm:swashbucklerupgraded", SMALL_SHIP_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER, HpmShipModelLayers.CUTTER, "cutterremastered.png", "hpm:cutter", CUTTER_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER_MILITARISED, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterweaponisedremastered.png", "hpm:cuttermilitarised", CUTTER_WATERLINE_OFFSET);
+        register(HpmEntities.CUTTER_PIRATE, HpmShipModelLayers.CUTTER_WEAPONISED, "cutterpirateremastered.png", "hpm:cutter_pirate", CUTTER_WATERLINE_OFFSET);
         register(HpmEntities.CORVETTE_STEAMSHIP, HpmShipModelLayers.CORVETTE, "corvetteclass.png", "hpm:corvette_steamship", 0.0D);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
