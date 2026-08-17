@@ -50,19 +50,21 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 if (horizontal > 0.25D) throw new AssertionError("Pilot not centered: " + horizontal);
                 return vehicle.position();
             });
-            context.takeScreenshot("swashbucklers-restored-mounted-pilot");
 
-            context.getInput().holdKeyFor(options -> options.keyUp, 30);
+            // Controls are intentionally flipped from the prior build: S raises sail/throttle.
+            context.getInput().holdKeyFor(options -> options.keyDown, 30);
             context.waitTicks(8);
-            Vec3 afterW = vehiclePosition(context);
-            double moved = horizontalDistance(start, afterW);
-            if (moved < 0.50D) throw new AssertionError("Raft did not move under sail: " + moved);
+            Vec3 afterS = vehiclePosition(context);
+            double moved = horizontalDistance(start, afterS);
+            float raisedSail = sailSpeed(context);
+            if (moved < 0.50D) throw new AssertionError("Raft did not move when S raised sail: " + moved);
+            if (raisedSail < 20.0F) throw new AssertionError("S did not raise sail throttle: " + raisedSail);
 
-            Vec3 coastStart = afterW;
+            Vec3 coastStart = afterS;
             context.waitTicks(20);
             Vec3 afterRelease = vehiclePosition(context);
             double coast = horizontalDistance(coastStart, afterRelease);
-            if (coast < 0.35D) throw new AssertionError("Ship stopped like vanilla rowing after W release: " + coast);
+            if (coast < 0.35D) throw new AssertionError("Ship stopped like vanilla rowing after S release: " + coast);
 
             float yawBefore = entityYaw(context);
             context.getInput().holdKeyFor(options -> options.keyLeft, 5);
@@ -71,13 +73,36 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             float turn = angleDiff(yawBefore,yawAfter);
             if (turn < 6.0F) throw new AssertionError("Ship did not turn with original steering: " + turn);
 
+            // W must now lower the already-raised sail throttle.
+            float beforeW = sailSpeed(context);
+            context.getInput().holdKeyFor(options -> options.keyUp, 15);
+            context.waitTicks(4);
+            float afterW = sailSpeed(context);
+            if (afterW >= beforeW - 8.0F) throw new AssertionError("W did not lower sail throttle: before=" + beforeW + " after=" + afterW);
+
             context.getInput().holdKeyFor(options -> options.keyShift, 2);
             context.waitTicks(5);
             context.computeOnClient(client -> {
                 if (client.player == null || client.player.getVehicle()!=null) throw new AssertionError("Player did not dismount");
                 return true;
             });
-            System.out.println("SWASHBUCKLERS_ORIGINAL_CONTROL_OK moved="+moved+" coast="+coast+" turn="+turn);
+
+            // Reproduce the user's corvette seating case and enforce the lowered deck position.
+            server.runCommand("kill @e[type=#minecraft:boat]");
+            server.runCommand("summon hpm:corvette_steamship 0 64 4 {Rotation:[0f,0f],Tags:[\"hpm_ci_corvette_seat\"]}");
+            context.waitTicks(10);
+            server.runCommand("ride @p mount @e[type=hpm:corvette_steamship,tag=hpm_ci_corvette_seat,limit=1]");
+            context.waitTicks(10);
+            double seatDeltaY = context.computeOnClient(client -> {
+                if (client.player == null || !(client.player.getVehicle() instanceof AbstractBoat vehicle)) throw new AssertionError("Player could not mount corvette");
+                return client.player.getY() - vehicle.getY();
+            });
+            if (seatDeltaY > 1.10D) throw new AssertionError("Corvette pilot still sits too high: deltaY=" + seatDeltaY);
+            if (seatDeltaY < 0.20D) throw new AssertionError("Corvette pilot was lowered into the hull/water: deltaY=" + seatDeltaY);
+            context.takeScreenshot("swashbucklers-lowered-corvette-seat");
+
+            System.out.println("SWASHBUCKLERS_FLIPPED_CONTROLS_OK moved="+moved+" coast="+coast+" turn="+turn+" raisedSail="+raisedSail+" afterW="+afterW);
+            System.out.println("SWASHBUCKLERS_CORVETTE_SEAT_OK deltaY="+seatDeltaY);
         }
     }
 
@@ -93,6 +118,14 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             Entity vehicle = client.player == null ? null : client.player.getVehicle();
             if (!(vehicle instanceof AbstractBoat)) throw new AssertionError("No ship vehicle");
             return vehicle.getYRot();
+        });
+    }
+
+    private static float sailSpeed(ClientGameTestContext context) {
+        return context.computeOnClient(client -> {
+            Entity vehicle = client.player == null ? null : client.player.getVehicle();
+            if (!(vehicle instanceof HpmControllableShip ship)) throw new AssertionError("No controllable ship");
+            return ship.hpm$getSailSpeed();
         });
     }
 
