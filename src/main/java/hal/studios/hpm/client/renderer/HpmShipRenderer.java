@@ -19,11 +19,14 @@ public final class HpmShipRenderer extends AbstractBoatRenderer {
     private static final Set<String> CI_RENDERED_IDS = ConcurrentHashMap.newKeySet();
     private final EntityModel<BoatRenderState> shipModel;
     private final String debugId;
+    private final double verticalOffset;
 
-    public HpmShipRenderer(EntityRendererProvider.Context context, ModelLayerLocation layer, Identifier texture, String debugId) {
+    public HpmShipRenderer(EntityRendererProvider.Context context, ModelLayerLocation layer, Identifier texture,
+            String debugId, double verticalOffset) {
         super(context, texture);
         this.shipModel = new HpmShipModel(context.bakeLayer(layer));
         this.debugId = debugId;
+        this.verticalOffset = verticalOffset;
     }
 
     @Override
@@ -32,6 +35,10 @@ public final class HpmShipRenderer extends AbstractBoatRenderer {
     @Override
     public void submit(BoatRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         poseStack.pushPose();
+        // The recovered models were authored for MobRenderer, whose origin is
+        // vertically different from AbstractBoatRenderer. Apply an explicit
+        // per-model waterline correction rather than changing the sailing physics.
+        poseStack.translate(0.0D, this.verticalOffset, 0.0D);
         poseStack.mulPose(Axis.YP.rotationDegrees(-90.0F));
         super.submit(state, poseStack, nodeCollector, cameraState);
         poseStack.popPose();
