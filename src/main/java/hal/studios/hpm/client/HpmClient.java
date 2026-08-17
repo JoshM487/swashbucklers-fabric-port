@@ -18,9 +18,9 @@ import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 
 public final class HpmClient implements ClientModInitializer {
     // The three small recovered models sit much lower in AbstractBoatRenderer's
-    // model space than the cutter family. Keep separate offsets instead of
-    // moving the entity/buoyancy physics themselves.
-    private static final double SMALL_SHIP_WATERLINE_OFFSET = 1.50D;
+    // model space than the cutter family. These are visual-origin corrections;
+    // entity buoyancy and sailing physics remain the original recovered values.
+    private static final double SMALL_SHIP_WATERLINE_OFFSET = 2.25D;
     private static final double CUTTER_WATERLINE_OFFSET = 0.75D;
 
     @Override
@@ -40,8 +40,7 @@ public final class HpmClient implements ClientModInitializer {
             if (!(vehicle instanceof AbstractBoat) || !(vehicle instanceof HpmControllableShip ship)) return;
 
             int flags = 0;
-            // User-facing controls are intentionally inverted from the previous build:
-            // S raises sail/throttle, W lowers sail/throttle and continues into reverse.
+            // S raises sail/throttle; W lowers sail/throttle and continues into reverse.
             if (client.options.keyUp.isDown()) flags |= 2;
             if (client.options.keyDown.isDown()) flags |= 1;
             if (client.options.keyLeft.isDown()) flags |= 4;
