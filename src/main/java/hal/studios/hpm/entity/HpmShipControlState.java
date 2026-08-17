@@ -71,11 +71,12 @@ final class HpmShipControlState {
             this.sailSpeed = Math.max(-40.0F, this.sailSpeed - 1.0F);
         }
 
-        if (this.sailSpeed > 0.1F) {
-            if (this.turnLeft) this.shipYaw -= this.turnDegreesPerTick;
-            if (this.turnRight) this.shipYaw += this.turnDegreesPerTick;
-            this.shipYaw = wrapDegrees(this.shipYaw);
-        }
+        // A/D steer the rudder independently from sail throttle. This keeps the
+        // ship steerable at 0% sail (and while reversing) instead of locking yaw
+        // whenever the sails are fully lowered.
+        if (this.turnLeft) this.shipYaw -= this.turnDegreesPerTick;
+        if (this.turnRight) this.shipYaw += this.turnDegreesPerTick;
+        this.shipYaw = wrapDegrees(this.shipYaw);
 
         ship.setYRot(this.shipYaw);
 
