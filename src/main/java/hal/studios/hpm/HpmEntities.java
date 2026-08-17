@@ -75,7 +75,10 @@ public final class HpmEntities {
 
     public static final EntityType<Boat> CORVETTE_STEAMSHIP = boat(
             "corvette_steamship", 4.0f, 1.3f, () -> HpmItems.CORVETTE_STEAMSHIP_ITEM,
-            0.3, 0.03, 0.80, 1.0f, 1.30);
+            // The compatibility Boat origin sits below the recovered model's visible deck.
+            // 1.30 placed the rider far too high above the corvette deck in real play;
+            // 0.70 seats the rider down at deck/rail height while keeping them above water.
+            0.3, 0.03, 0.80, 1.0f, 0.70);
 
     public static void initialize() {}
 }
