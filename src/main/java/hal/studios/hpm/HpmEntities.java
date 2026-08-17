@@ -80,7 +80,7 @@ public final class HpmEntities {
 
     public static final EntityType<Boat> CORVETTE_STEAMSHIP = boat(
             "corvette_steamship", 4.0f, 1.3f, () -> HpmItems.CORVETTE_STEAMSHIP_ITEM,
-            0.3, 0.03, 0.80, 1.0f, 0.95);
+            0.3, 0.03, 0.80, 1.0f, 1.70);
 
     public static void initialize() {}
 }
