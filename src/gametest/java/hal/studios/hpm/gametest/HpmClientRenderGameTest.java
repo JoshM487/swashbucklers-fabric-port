@@ -34,6 +34,19 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             context.takeScreenshot("swashbucklers-seven-ships-visible");
             System.out.println("SWASHBUCKLERS_CLIENT_RENDER_TEST_OK " + HpmShipRenderer.ciRenderedIds());
 
+            // Real-water visual regression scene. The six non-corvette ships had
+            // been settling roughly half-submerged on the Boat compatibility shell.
+            server.runCommand("kill @e[type=#minecraft:boat]");
+            server.runCommand("fill -22 62 4 22 62 30 minecraft:stone");
+            server.runCommand("fill -22 63 4 22 64 30 minecraft:water");
+            server.runCommand("tp @a 0 68 -1 0 18");
+            int[] waterXs = {-15,-10,-5,0,5,10,15};
+            for (int i=0;i<ships.length;i++) server.runCommand("summon " + ships[i] + " " + waterXs[i] + " 64 18");
+            context.waitTicks(60);
+            singleplayer.getClientLevel().waitForChunksRender();
+            context.takeScreenshot("swashbucklers-seven-ships-waterline");
+            System.out.println("SWASHBUCKLERS_WATERLINE_SCENE_OK");
+
             server.runCommand("kill @e[type=#minecraft:boat]");
             server.runCommand("fill -50 62 -50 50 62 50 minecraft:stone");
             server.runCommand("fill -50 63 -50 50 64 50 minecraft:water");
