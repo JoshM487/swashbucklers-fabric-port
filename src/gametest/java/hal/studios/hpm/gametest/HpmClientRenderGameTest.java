@@ -34,8 +34,6 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             context.takeScreenshot("swashbucklers-seven-ships-visible");
             System.out.println("SWASHBUCKLERS_CLIENT_RENDER_TEST_OK " + HpmShipRenderer.ciRenderedIds());
 
-            // Real-water visual regression scene. The six non-corvette ships had
-            // been settling roughly half-submerged on the Boat compatibility shell.
             server.runCommand("kill @e[type=#minecraft:boat]");
             server.runCommand("fill -22 62 4 22 62 30 minecraft:stone");
             server.runCommand("fill -22 63 4 22 64 30 minecraft:water");
@@ -64,7 +62,6 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 return vehicle.position();
             });
 
-            // Regression check for the user's exact case: A/D must steer at 0% sail.
             float zeroSail = sailSpeed(context);
             if (Math.abs(zeroSail) > 0.01F) throw new AssertionError("Expected 0% sail before steering test, got " + zeroSail);
             float yawSailsDownBefore = entityYaw(context);
@@ -75,7 +72,6 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             if (sailsDownTurn < 6.0F) throw new AssertionError("Ship cannot steer with sails down: " + sailsDownTurn);
             if (Math.abs(sailSpeed(context)) > 0.01F) throw new AssertionError("Steering at sails-down unexpectedly changed throttle");
 
-            // Controls are intentionally flipped from the prior build: S raises sail/throttle.
             context.getInput().holdKeyFor(options -> options.keyDown, 30);
             context.waitTicks(8);
             Vec3 afterS = vehiclePosition(context);
@@ -97,7 +93,6 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             float turn = angleDiff(yawBefore,yawAfter);
             if (turn < 6.0F) throw new AssertionError("Ship did not turn with original steering: " + turn);
 
-            // W must now lower the already-raised sail throttle.
             float beforeW = sailSpeed(context);
             context.getInput().holdKeyFor(options -> options.keyUp, 15);
             context.waitTicks(4);
@@ -111,7 +106,6 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 return true;
             });
 
-            // Reproduce the user's corvette seating case and enforce the lowered deck position.
             server.runCommand("kill @e[type=#minecraft:boat]");
             server.runCommand("summon hpm:corvette_steamship 0 64 4 {Rotation:[0f,0f],Tags:[\"hpm_ci_corvette_seat\"]}");
             context.waitTicks(10);
@@ -121,9 +115,9 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 if (client.player == null || !(client.player.getVehicle() instanceof AbstractBoat vehicle)) throw new AssertionError("Player could not mount corvette");
                 return client.player.getY() - vehicle.getY();
             });
-            if (seatDeltaY > 1.10D) throw new AssertionError("Corvette pilot still sits too high: deltaY=" + seatDeltaY);
-            if (seatDeltaY < 0.20D) throw new AssertionError("Corvette pilot was lowered into the hull/water: deltaY=" + seatDeltaY);
-            context.takeScreenshot("swashbucklers-lowered-corvette-seat");
+            if (seatDeltaY > 1.30D) throw new AssertionError("Raised Corvette pilot sits too high: deltaY=" + seatDeltaY);
+            if (seatDeltaY < 0.80D) throw new AssertionError("Raised Corvette pilot is below the visible deck: deltaY=" + seatDeltaY);
+            context.takeScreenshot("swashbucklers-raised-corvette-seat");
 
             System.out.println("SWASHBUCKLERS_SAILS_DOWN_STEERING_OK turn="+sailsDownTurn+" sail="+zeroSail);
             System.out.println("SWASHBUCKLERS_FLIPPED_CONTROLS_OK moved="+moved+" coast="+coast+" turn="+turn+" raisedSail="+raisedSail+" afterW="+afterW);
