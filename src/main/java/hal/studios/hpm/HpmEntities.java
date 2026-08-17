@@ -50,35 +50,34 @@ public final class HpmEntities {
     }
 
     /*
-     * The recovered models were authored for the original PathfinderMob entities.
-     * On the 26.1 Boat compatibility shell their visual hull origins sit much
-     * lower relative to vanilla water status. A negative probe keeps applying the
-     * original lift until the actual ship origin is high enough for the recovered
-     * hull to meet the waterline. Corvette already sits correctly and is left alone.
+     * Preserve the original 1.21.4 buoyancy probes/lift velocities. The visual
+     * waterline mismatch belongs to AbstractBoatRenderer and is corrected on the
+     * client renderer instead. Non-corvette passenger attachment heights include
+     * the same +0.75 renderer-origin compensation so riders stay on the deck.
      */
     public static final EntityType<ChestBoat> RAFT = chestBoat(
             "raft", 2.0f, 0.4f, () -> HpmItems.RAFTITEM,
-            -0.5, 0.03, 0.45, 3.0f, 0.40);
+            0.3, 0.03, 0.45, 3.0f, 1.15);
 
     public static final EntityType<Boat> SWASHBUCKLER = boat(
             "swashbuckler", 1.5f, 0.45f, () -> HpmItems.SWASHBUCKLERITEM,
-            -0.5, 0.03, 0.60, 3.0f, 0.05);
+            0.3, 0.03, 0.60, 3.0f, 0.80);
 
     public static final EntityType<ChestBoat> SWASHBUCKLER_UPGRADED = chestBoat(
             "swashbucklerupgraded", 1.3f, 0.45f, () -> HpmItems.SWASHBUCKLERUPGRADE,
-            -0.5, 0.03, 0.70, 3.0f, 0.05);
+            0.3, 0.03, 0.70, 3.0f, 0.80);
 
     public static final EntityType<ChestBoat> CUTTER = chestBoat(
             "cutter", 1.6f, 0.7f, () -> HpmItems.CUTTERITEM,
-            -0.5, 0.05, 0.55, 3.0f, 0.20);
+            0.525, 0.05, 0.55, 3.0f, 0.95);
 
     public static final EntityType<ChestBoat> CUTTER_MILITARISED = chestBoat(
             "cuttermilitarised", 1.6f, 0.7f, () -> HpmItems.CUTTERMILITARISEDITEM,
-            -0.5, 0.05, 0.65, 3.0f, 0.20);
+            0.525, 0.05, 0.65, 3.0f, 0.95);
 
     public static final EntityType<ChestBoat> CUTTER_PIRATE = chestBoat(
             "cutter_pirate", 1.6f, 0.7f, () -> HpmItems.PIRATE_CUTTER_ITEM,
-            -0.5, 0.05, 0.68, 3.0f, 0.20);
+            0.525, 0.05, 0.68, 3.0f, 0.95);
 
     public static final EntityType<Boat> CORVETTE_STEAMSHIP = boat(
             "corvette_steamship", 4.0f, 1.3f, () -> HpmItems.CORVETTE_STEAMSHIP_ITEM,
