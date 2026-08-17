@@ -64,7 +64,7 @@ jobs:
           touch server-smoke.ok
       - name: Ensure XVFB is available
         run: if ! command -v Xvfb >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y xvfb; fi
-      - name: Production Fabric client original mounting/render/control validation
+      - name: Production Fabric client flipped controls and seat validation
         continue-on-error: true
         shell: bash
         run: |
@@ -73,7 +73,8 @@ jobs:
           for model in Modelraft Modelswashbuckler Modelswashbucklerupgraded Modelcutterremastered Modelcutterweaponisedremastered Modelcorvetteclass; do grep -q "SWASHBUCKLERS_MODEL_OK $model" prod-client.log; done
           for id in hpm:raft hpm:swashbuckler hpm:swashbucklerupgraded hpm:cutter hpm:cuttermilitarised hpm:cutter_pirate hpm:corvette_steamship; do grep -q "SWASHBUCKLERS_RENDER_OK $id" prod-client.log; done
           grep -q 'SWASHBUCKLERS_CLIENT_RENDER_TEST_OK' prod-client.log
-          grep -q 'SWASHBUCKLERS_ORIGINAL_CONTROL_OK' prod-client.log
+          grep -q 'SWASHBUCKLERS_FLIPPED_CONTROLS_OK' prod-client.log
+          grep -q 'SWASHBUCKLERS_CORVETTE_SEAT_OK' prod-client.log
           touch client-smoke.ok
       - name: Require production validation
         run: test -f server-smoke.ok && test -f client-smoke.ok
