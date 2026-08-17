@@ -4,40 +4,35 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import hal.studios.hpm.client.model.HpmShipModel;
-import hal.studios.hpm.entity.HpmShipEntity;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.AbstractBoatRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.entity.MobRenderer;
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.entity.state.BoatRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 
-public final class HpmShipRenderer extends MobRenderer<HpmShipEntity, LivingEntityRenderState, HpmShipModel> {
+public final class HpmShipRenderer extends AbstractBoatRenderer {
     private static final Set<String> CI_RENDERED_IDS = ConcurrentHashMap.newKeySet();
-    private final Identifier texture;
-    private final float modelScale;
+    private final EntityModel<BoatRenderState> shipModel;
     private final String debugId;
 
-    public HpmShipRenderer(EntityRendererProvider.Context context, ModelLayerLocation layer, Identifier texture,
-            float modelScale, float shadowRadius, String debugId) {
-        super(context, new HpmShipModel(context.bakeLayer(layer)), shadowRadius);
-        this.texture = texture;
-        this.modelScale = modelScale;
+    public HpmShipRenderer(EntityRendererProvider.Context context, ModelLayerLocation layer, Identifier texture, String debugId) {
+        super(context, texture);
+        this.shipModel = new HpmShipModel(context.bakeLayer(layer));
         this.debugId = debugId;
     }
 
     @Override
-    public LivingEntityRenderState createRenderState() { return new LivingEntityRenderState(); }
+    protected EntityModel<BoatRenderState> model() { return this.shipModel; }
 
     @Override
-    public Identifier getTextureLocation(LivingEntityRenderState state) { return this.texture; }
-
-    @Override
-    public void submit(LivingEntityRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
+    public void submit(BoatRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         poseStack.pushPose();
-        poseStack.scale(this.modelScale, this.modelScale, this.modelScale);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-90.0F));
         super.submit(state, poseStack, nodeCollector, cameraState);
         poseStack.popPose();
         if (Boolean.getBoolean("hpm.ci.renderTest") && CI_RENDERED_IDS.add(this.debugId)) {
