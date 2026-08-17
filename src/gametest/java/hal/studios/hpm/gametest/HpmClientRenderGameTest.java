@@ -51,6 +51,17 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
                 return vehicle.position();
             });
 
+            // Regression check for the user's exact case: A/D must steer at 0% sail.
+            float zeroSail = sailSpeed(context);
+            if (Math.abs(zeroSail) > 0.01F) throw new AssertionError("Expected 0% sail before steering test, got " + zeroSail);
+            float yawSailsDownBefore = entityYaw(context);
+            context.getInput().holdKeyFor(options -> options.keyLeft, 5);
+            context.waitTicks(8);
+            float yawSailsDownAfter = entityYaw(context);
+            float sailsDownTurn = angleDiff(yawSailsDownBefore, yawSailsDownAfter);
+            if (sailsDownTurn < 6.0F) throw new AssertionError("Ship cannot steer with sails down: " + sailsDownTurn);
+            if (Math.abs(sailSpeed(context)) > 0.01F) throw new AssertionError("Steering at sails-down unexpectedly changed throttle");
+
             // Controls are intentionally flipped from the prior build: S raises sail/throttle.
             context.getInput().holdKeyFor(options -> options.keyDown, 30);
             context.waitTicks(8);
@@ -101,6 +112,7 @@ public final class HpmClientRenderGameTest implements FabricClientGameTest {
             if (seatDeltaY < 0.20D) throw new AssertionError("Corvette pilot was lowered into the hull/water: deltaY=" + seatDeltaY);
             context.takeScreenshot("swashbucklers-lowered-corvette-seat");
 
+            System.out.println("SWASHBUCKLERS_SAILS_DOWN_STEERING_OK turn="+sailsDownTurn+" sail="+zeroSail);
             System.out.println("SWASHBUCKLERS_FLIPPED_CONTROLS_OK moved="+moved+" coast="+coast+" turn="+turn+" raisedSail="+raisedSail+" afterW="+afterW);
             System.out.println("SWASHBUCKLERS_CORVETTE_SEAT_OK deltaY="+seatDeltaY);
         }
